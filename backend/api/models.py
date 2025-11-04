@@ -13,24 +13,25 @@ class Business(models.Model):
         max_length = 100,
         unique = True
     )
-
+    # How many points a customer earns per unit of currency spent.
     reward_rate = models.DecimalField(
         max_digits = 6,
-        decimal_places = 3
+        decimal_places = 3,
+        help_text = "Points awarded per 1.00 currency unit"
     )
-
+    # The number of points needed to redeem a reward.
     redemption_points = models.PositiveIntegerField(
-
+        help_text = "Amount of points needed to redeem a reward"
     )
 
+    # The monetary value of one redemption or reward in percentage for discount.
     redemption_rate = models.DecimalField(
         max_digits = 3,
-        decimal_places = 2
+        decimal_places = 2,
+        help_text = "Discount percentage in decimal form for reward on a redemption"
     )
 
-    logo_url = models.URLField(
-
-    )
+    logo_url = models.URLField()
 
     primary_color = models.CharField(
         max_length = 7,
@@ -57,15 +58,21 @@ class Customer(models.Model):
         max_length = 100
     )
 
-    email = models.EmailField(
-        max_length = 100,
+    phone_number = models.CharField(
+        max_length = 20,
         unique = True
     )
 
     def __str__(self):
         return self.name
 
-class LoyaltyCard(models.Model):
+class BusinessCustomer(models.Model):
+
+    id = models.UUIDField(
+        primary_key = True,
+        default = uuid.uuid4,
+        editable = False
+    )
 
     business = models.ForeignKey(
         Business,
@@ -74,6 +81,20 @@ class LoyaltyCard(models.Model):
 
     customer = models.ForeignKey(
         Customer,
+        on_delete = models.PROTECT
+    )
+
+    class Meta:
+        unique_together = ('business', 'customer')
+
+    def __str__(self):
+        return f"{self.business} | {self.customer}"
+
+
+class LoyaltyCard(models.Model):
+
+    business_customer = models.ForeignKey(
+        BusinessCustomer,
         on_delete = models.CASCADE
     )
 
@@ -121,11 +142,8 @@ class LoyaltyCard(models.Model):
         default='active'
     )
 
-    class Meta:
-        unique_together = ('business', 'customer')
-
     def __str__(self):
-        return f"Customer: {self.customer.name} | Points: {self.points_balance}"
+        return f"Customer: {self.business_customer.customer.name} | Points: {self.points_balance}"
 
 class Station(models.Model):
 
@@ -145,7 +163,7 @@ class Station(models.Model):
     )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.business.name})"
 
 class Transaction(models.Model):
 
@@ -166,7 +184,7 @@ class Transaction(models.Model):
     )
 
     points_earned = models.PositiveIntegerField(
-
+        default = 0
     )
 
     amount = models.DecimalField(
@@ -179,5 +197,6 @@ class Transaction(models.Model):
     )
 
     def __str__(self):
-        return f"Points Earned: {self.points_earned}"
+        return f"Txn {self.id} | {self.points_earned} pts"
+
 
