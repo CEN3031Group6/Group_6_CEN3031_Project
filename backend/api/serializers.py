@@ -29,6 +29,14 @@ class BusinessCustomerSerializer(serializers.ModelSerializer):
 class LoyaltyCardSerializer(serializers.ModelSerializer):
 
     business_customer = BusinessCustomerSerializer(read_only = True)
+    token = serializers.UUIDField(read_only=True)
+    points_balance = serializers.IntegerField(read_only=True)
+    wallet_status = serializers.CharField(read_only=True)
+    apple_pass_id = serializers.CharField(read_only=True)
+    google_pass_id = serializers.CharField(read_only=True)
+    apple_push_token = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
 
     business_customer_id = serializers.PrimaryKeyRelatedField(
@@ -52,15 +60,6 @@ class LoyaltyCardSerializer(serializers.ModelSerializer):
             "business_customer_id",
         ]
 
-    token = serializers.UUIDField(read_only = True)
-    points_balance = serializers.IntegerField(read_only = True)
-    wallet_status = serializers.CharField(read_only = True)
-    apple_pass_id = serializers.CharField(read_only = True)
-    google_pass_id = serializers.CharField(read_only = True)
-    apple_push_token = serializers.CharField(read_only = True)
-    created_at = serializers.DateTimeField(read_only = True)
-    updated_at = serializers.DateTimeField(read_only = True)
-
 class StationSerializer(serializers.ModelSerializer):
     business = BusinessSerializer(read_only = True)
 
@@ -70,7 +69,7 @@ class StationSerializer(serializers.ModelSerializer):
 
 class TransactionSerializer(serializers.ModelSerializer):
     station = StationSerializer(read_only = True)
-
+    points_earned = serializers.IntegerField(read_only=True)
     loyalty_card = LoyaltyCardSerializer(read_only = True)
 
     loyalty_card_id = serializers.PrimaryKeyRelatedField(
@@ -90,5 +89,3 @@ class TransactionSerializer(serializers.ModelSerializer):
             "amount",
             "created_at",
         ]
-
-    points_earned = serializers.IntegerField(read_only = True)
