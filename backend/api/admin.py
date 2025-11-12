@@ -38,7 +38,8 @@ class LoyaltyCardAdmin(admin.ModelAdmin):
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):
-    list_display = ("name", "business")
+    list_display = ("name", "business", "api_token")
+    readonly_fields = ("api_token",)
     list_filter = ("business",)
     search_fields = ("name", "business__name")
 
@@ -51,4 +52,5 @@ class TransactionAdmin(admin.ModelAdmin):
         "loyalty_card__business_customer__customer__name",
         "loyalty_card__business_customer__customer__phone_number",
     )
+
 
