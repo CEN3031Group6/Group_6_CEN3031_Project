@@ -9,6 +9,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -19,7 +20,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "api",
+    "accounts",
 ]
+
+AUTH_USER_MODEL = "accounts.BusinessUser"
+
+LOGIN_REDIRECT_URL = '/admin/'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

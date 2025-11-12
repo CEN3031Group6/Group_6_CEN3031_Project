@@ -1,4 +1,5 @@
 from django.db import models
+import secrets
 import uuid
 
 class Business(models.Model):
@@ -152,6 +153,17 @@ class Station(models.Model):
         default=uuid.uuid4,
         editable=False
     )
+
+    api_token = models.CharField(
+        max_length=64,
+        unique=True,
+        editable=False
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.api_token:
+            self.api_token = secrets.token_hex(32)
+        super().save(*args, **kwargs)
 
     business = models.ForeignKey(
         Business,
