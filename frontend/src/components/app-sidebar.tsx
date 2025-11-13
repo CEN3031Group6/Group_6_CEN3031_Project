@@ -46,22 +46,27 @@ const data = {
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
+      title: "Account",
       url: "#",
       icon: IconListDetails,
     },
     {
-      title: "Analytics",
+      title: "Station",
       url: "#",
       icon: IconChartBar,
     },
     {
-      title: "Projects",
+      title: "Customer",
       url: "#",
       icon: IconFolder,
     },
     {
-      title: "Team",
+      title: "Loyalty Cards",
+      url: "#",
+      icon: IconUsers,
+    },
+    {
+      title: "Checkout & Transactions",
       url: "#",
       icon: IconUsers,
     },
@@ -133,19 +138,9 @@ const data = {
   ],
   documents: [
     {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
       name: "Reports",
       url: "#",
       icon: IconReport,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
     },
   ],
 }
