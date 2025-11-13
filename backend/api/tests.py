@@ -1,12 +1,14 @@
 import uuid
 from decimal import Decimal
 
+from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import BusinessUser
-from api.models import Business, BusinessCustomer, Customer, LoyaltyCard, Station
+from api.models import Business, BusinessCustomer, Customer, LoyaltyCard, Station, PassRegistration
+from api.passkit import ensure_card_auth_token
 
 
 def create_business(name="Primary Biz"):
@@ -40,6 +42,9 @@ class AuthenticatedBusinessAPITestCase(APITestCase):
     def create_customer(self, name):
         return Customer.objects.create(name=name, phone_number=unique_phone())
 
+    def create_station(self, name="Front Counter"):
+        return Station.objects.create(business=self.business, name=name)
+
 
 class BusinessViewSetTests(AuthenticatedBusinessAPITestCase):
     def test_list_returns_only_authenticated_business(self):
@@ -48,8 +53,9 @@ class BusinessViewSetTests(AuthenticatedBusinessAPITestCase):
         response = self.client.get(reverse("business-list"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["id"], str(self.business.pk))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.business.pk))
 
 
 class BusinessCustomerViewSetTests(AuthenticatedBusinessAPITestCase):
@@ -77,8 +83,9 @@ class BusinessCustomerViewSetTests(AuthenticatedBusinessAPITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["id"], str(owned_relation.pk))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(owned_relation.pk))
 
     def test_create_assigns_business_automatically(self):
         customer = self.create_customer("Charlie")
@@ -125,8 +132,9 @@ class LoyaltyCardViewSetTests(AuthenticatedBusinessAPITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["token"], str(owned_card.token))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["token"], str(owned_card.token))
 
     def test_create_card_for_own_customer(self):
         response = self.client.post(
@@ -154,8 +162,9 @@ class StationViewSetTests(AuthenticatedBusinessAPITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["business"]["id"], str(self.business.pk))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["business"]["id"], str(self.business.pk))
 
     def test_create_station_generates_api_token(self):
         response = self.client.post(
@@ -208,5 +217,192 @@ class CustomerViewSetPermissionTests(APITestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["id"], str(self.customer.pk))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.customer.pk))
+
+
+class LoyaltyCardIssuanceTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.station = self.create_station()
+        self.client.credentials(HTTP_X_STATION_TOKEN=self.station.api_token)
+        self.url = reverse("loyaltycard-issue")
+
+    def test_issue_creates_customer_link_and_card(self):
+        payload = {"customer_name": "Sam Customer", "phone_number": "(555) 111-2222"}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Customer.objects.count(), 1)
+        self.assertEqual(BusinessCustomer.objects.count(), 1)
+        self.assertEqual(LoyaltyCard.objects.count(), 1)
+
+        station = Station.objects.get(pk=self.station.pk)
+        self.assertIsNotNone(station.prepared_loyalty_card)
+        self.assertIn("prepared_pass_url", response.data)
+        self.assertEqual(response.data["loyalty_card"]["qr_payload"], response.data["loyalty_card"]["token"])
+
+    def test_issue_is_idempotent_for_phone(self):
+        payload = {"customer_name": "Sam Customer", "phone_number": "(555) 111-2222"}
+        first = self.client.post(self.url, payload, format="json")
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        second = self.client.post(self.url, payload, format="json")
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Customer.objects.count(), 1)
+        self.assertEqual(BusinessCustomer.objects.count(), 1)
+        self.assertEqual(LoyaltyCard.objects.count(), 1)
+
+
+class StationPreparedPassTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.station = self.create_station()
+        self.client.credentials(HTTP_X_STATION_TOKEN=self.station.api_token)
+        self.issue_url = reverse("loyaltycard-issue")
+
+    def test_prepared_pass_endpoint_returns_and_clears_card(self):
+        payload = {"customer_name": "Jess", "phone_number": "555-222-3333"}
+        self.client.post(self.issue_url, payload, format="json")
+
+        url = reverse("station-prepared-pass", args=[self.station.pk])
+        response = self.client.get(f"{url}?token={self.station.api_token}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("loyalty_card_token", response.data)
+
+        station = Station.objects.get(pk=self.station.pk)
+        self.assertIsNone(station.prepared_loyalty_card)
+
+
+class TransactionFlowTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.station = self.create_station()
+        self.client.credentials(HTTP_X_STATION_TOKEN=self.station.api_token)
+        self.business.reward_rate = Decimal("1.500")
+        self.business.redemption_points = 100
+        self.business.redemption_rate = Decimal("0.10")
+        self.business.save()
+
+        customer = self.create_customer("Dana")
+        bc = BusinessCustomer.objects.create(business=self.business, customer=customer)
+        self.card = LoyaltyCard.objects.create(business_customer=bc, points_balance=0)
+        self.url = reverse("transaction-list")
+
+    def test_transaction_accrues_points(self):
+        payload = {"loyalty_card_id": str(self.card.pk), "amount": "12.00"}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["points_earned"], 18)
+        self.assertEqual(response.data["points_redeemed"], 0)
+        self.assertEqual(response.data["final_amount"], "12.00")
+
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.points_balance, 18)
+
+    def test_transaction_redeems_when_requested_and_sufficient_points(self):
+        self.card.points_balance = 110
+        self.card.save()
+
+        payload = {"loyalty_card_id": str(self.card.pk), "amount": "50.00", "redeem": True}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["points_redeemed"], 100)
+        self.assertEqual(response.data["final_amount"], "45.00")
+
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.points_balance, 85)
+
+    def test_transaction_rejects_station_from_other_business(self):
+        other_business = create_business("Other Biz")
+        other_station = Station.objects.create(business=other_business, name="Other Station")
+
+        payload = {"loyalty_card_id": str(self.card.pk), "amount": "10.00"}
+        self.client.credentials(HTTP_X_STATION_TOKEN=other_station.api_token)
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class BusinessCustomerDeletionTests(AuthenticatedBusinessAPITestCase):
+    def test_delete_prunes_customer_when_no_other_links(self):
+        customer = self.create_customer("Ruth")
+        bc = BusinessCustomer.objects.create(business=self.business, customer=customer)
+        LoyaltyCard.objects.create(business_customer=bc)
+
+        url = reverse("businesscustomer-detail", args=[bc.pk])
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Customer.objects.filter(pk=customer.pk).exists())
+
+
+class PassKitEndpointsTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.station = self.create_station()
+        customer = self.create_customer("Kara")
+        bc = BusinessCustomer.objects.create(business=self.business, customer=customer)
+        self.card = LoyaltyCard.objects.create(business_customer=bc, points_balance=10)
+        ensure_card_auth_token(self.card)
+
+    def test_station_prepared_pass_returns_pkpass(self):
+        self.station.prepared_loyalty_card = self.card
+        self.station.save(update_fields=["prepared_loyalty_card"])
+
+        url = reverse("station-prepared-pass", args=[self.station.pk])
+        response = self.client.get(f"{url}?token={self.station.api_token}&platform=apple&clear=false")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/vnd.apple.pkpass")
+
+    def test_device_registration_and_listing(self):
+        pass_type = settings.APPLE_PASS_TYPE_IDENTIFIER
+        device_id = "ABC123DEVICE"
+        register_url = reverse(
+            "passkit-device-registration",
+            args=[device_id, pass_type, self.card.token],
+        )
+        auth_header = f"ApplePass {self.card.apple_auth_token}"
+
+        post_response = self.client.post(
+            register_url,
+            {"pushToken": "push-token-1"},
+            format="json",
+            HTTP_AUTHORIZATION=auth_header,
+        )
+        self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            PassRegistration.objects.filter(
+                loyalty_card=self.card,
+                device_library_identifier=device_id,
+            ).exists()
+        )
+
+        list_url = reverse(
+            "passkit-device-registration-list",
+            args=[device_id, pass_type],
+        )
+        list_response = self.client.get(list_url, {"passesUpdatedSince": "1970-01-01T00:00:00Z"})
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertIn(str(self.card.token), list_response.data["serialNumbers"])
+
+    def test_pass_download_requires_authorization(self):
+        pass_type = settings.APPLE_PASS_TYPE_IDENTIFIER
+        download_url = reverse(
+            "passkit-pass-download",
+            args=[pass_type, self.card.token],
+        )
+
+        forbidden = self.client.get(download_url)
+        self.assertEqual(forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+        response = self.client.get(
+            download_url,
+            HTTP_AUTHORIZATION=f"ApplePass {self.card.apple_auth_token}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/vnd.apple.pkpass")

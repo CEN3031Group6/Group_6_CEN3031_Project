@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Business, Customer, BusinessCustomer, LoyaltyCard, Station, Transaction
+from .models import Business, Customer, BusinessCustomer, LoyaltyCard, Station, Transaction, PassRegistration
 
 
 @admin.register(Business)
@@ -23,7 +23,7 @@ class BusinessCustomerAdmin(admin.ModelAdmin):
 
 @admin.register(LoyaltyCard)
 class LoyaltyCardAdmin(admin.ModelAdmin):
-    list_display = ("token", "get_business", "get_customer", "points_balance", "wallet_status")
+    list_display = ("token", "get_business", "get_customer", "points_balance", "wallet_status", "apple_auth_token")
     list_filter = ("business_customer__business", "wallet_status")
     search_fields = ("business_customer__customer__name", "business_customer__customer__phone_number")
 
@@ -53,4 +53,9 @@ class TransactionAdmin(admin.ModelAdmin):
         "loyalty_card__business_customer__customer__phone_number",
     )
 
+
+@admin.register(PassRegistration)
+class PassRegistrationAdmin(admin.ModelAdmin):
+    list_display = ("loyalty_card", "device_library_identifier", "pass_type_identifier", "updated_at")
+    search_fields = ("device_library_identifier", "loyalty_card__token")
 

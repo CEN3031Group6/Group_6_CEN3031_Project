@@ -71,6 +71,23 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"]
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 25,
+    "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
 }
 
+# Apple Wallet / PassKit configuration (defaults for local dev)
+APPLE_PASS_TYPE_IDENTIFIER = os.getenv("APPLE_PASS_TYPE_IDENTIFIER", "pass.com.example.placeholder")
+APPLE_PASS_TEAM_ID = os.getenv("APPLE_PASS_TEAM_ID", "TEAMID0000")
+APPLE_PASS_CERT_PATH = os.getenv("APPLE_PASS_CERT_PATH", "")
+APPLE_PASS_CERT_PASSWORD = os.getenv("APPLE_PASS_CERT_PASSWORD", "")
+APPLE_PASS_WWDR_CERT_PATH = os.getenv("APPLE_PASS_WWDR_CERT_PATH", "")
+APPLE_PASS_WEB_SERVICE_URL = os.getenv("APPLE_PASS_WEB_SERVICE_URL", "https://localhost/passkit")
+APPLE_PASS_AUTH_TOKEN_SECRET = os.getenv("APPLE_PASS_AUTH_TOKEN_SECRET", "changeme")
