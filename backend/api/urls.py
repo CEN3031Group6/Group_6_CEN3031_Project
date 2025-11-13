@@ -1,6 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import BusinessViewSet, CustomerViewSet, BusinessCustomerViewSet, LoyaltyCardViewSet, StationViewSet, TransactionViewSet
+from .views import (
+    BusinessViewSet,
+    CustomerViewSet,
+    BusinessCustomerViewSet,
+    LoyaltyCardViewSet,
+    StationViewSet,
+    TransactionViewSet,
+    LoyaltyCardIssueView,
+    StationPreparedPassView,
+    LoyaltyCardQRView,
+)
 
 router = DefaultRouter()
 
@@ -13,5 +23,8 @@ router.register(r'transactions', TransactionViewSet)
 
 
 urlpatterns = [
+    path('loyaltycards/issue/', LoyaltyCardIssueView.as_view(), name='loyaltycard-issue'),
+    path('loyaltycards/<uuid:token>/qr/', LoyaltyCardQRView.as_view(), name='loyaltycard-qr'),
+    path('stations/<uuid:pk>/prepared-pass/', StationPreparedPassView.as_view(), name='station-prepared-pass'),
     path('', include(router.urls)),
 ]

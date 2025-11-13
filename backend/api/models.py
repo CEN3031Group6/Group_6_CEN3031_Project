@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 import secrets
 import uuid
@@ -143,6 +144,13 @@ class LoyaltyCard(models.Model):
         default='active'
     )
 
+    apple_auth_token = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True
+    )
+
     def __str__(self):
         return f"Customer: {self.business_customer.customer.name} | Points: {self.points_balance}"
 
@@ -174,6 +182,19 @@ class Station(models.Model):
         max_length = 50
     )
 
+    prepared_loyalty_card = models.ForeignKey(
+        "LoyaltyCard",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="prepared_stations",
+    )
+
+    prepared_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
     def __str__(self):
         return f"{self.name} ({self.business.name})"
 
@@ -199,9 +220,19 @@ class Transaction(models.Model):
         default = 0
     )
 
+    points_redeemed = models.PositiveIntegerField(
+        default = 0
+    )
+
     amount = models.DecimalField(
         max_digits = 10,
         decimal_places = 2
+    )
+
+    final_amount = models.DecimalField(
+        max_digits = 10,
+        decimal_places = 2,
+        default = Decimal("0.00")
     )
 
     created_at = models.DateTimeField(
@@ -212,3 +243,19 @@ class Transaction(models.Model):
         return f"Txn {self.id} | {self.points_earned} pts"
 
 
+class PassRegistration(models.Model):
+    loyalty_card = models.ForeignKey(
+        LoyaltyCard,
+        on_delete=models.CASCADE,
+        related_name="pass_registrations",
+    )
+    device_library_identifier = models.CharField(max_length=64)
+    pass_type_identifier = models.CharField(max_length=128)
+    push_token = models.CharField(max_length=256)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("loyalty_card", "device_library_identifier", "pass_type_identifier")
+
+    def __str__(self):
+        return f"{self.device_library_identifier} -> {self.loyalty_card_id}"

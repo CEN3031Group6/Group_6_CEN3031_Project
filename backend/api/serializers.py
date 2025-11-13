@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Business, Customer, BusinessCustomer, LoyaltyCard, Station, Transaction
+from .utils import normalize_phone_number
 
 class BusinessSerializer(serializers.ModelSerializer):
     class Meta:
@@ -70,6 +71,8 @@ class StationSerializer(serializers.ModelSerializer):
 class TransactionSerializer(serializers.ModelSerializer):
     station = StationSerializer(read_only = True)
     points_earned = serializers.IntegerField(read_only=True)
+    points_redeemed = serializers.IntegerField(read_only=True)
+    final_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     loyalty_card = LoyaltyCardSerializer(read_only = True)
 
     loyalty_card_id = serializers.PrimaryKeyRelatedField(
@@ -77,6 +80,23 @@ class TransactionSerializer(serializers.ModelSerializer):
         source = "loyalty_card",
         write_only = True
     )
+
+    redeem = serializers.BooleanField(write_only=True, default=False)
+
+    def validate_amount(self, value):
+        if value is None:
+            raise serializers.ValidationError("Amount is required.")
+        if value < 0:
+            raise serializers.ValidationError("Amount must be >= 0.")
+        return value
+
+    def validate_loyalty_card(self, value):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        biz = getattr(user, "business", None) if user else None
+        if biz and value.business_customer.business_id != biz.pk:
+            raise serializers.ValidationError("Loyalty card does not belong to your business.")
+        return value
 
     class Meta:
         model = Transaction
@@ -86,6 +106,23 @@ class TransactionSerializer(serializers.ModelSerializer):
             "loyalty_card_id",
             "station",
             "points_earned",
+            "points_redeemed",
+            "final_amount",
             "amount",
+            "redeem",
             "created_at",
         ]
+        read_only_fields = ("id", "points_earned", "points_redeemed", "final_amount", "station", "created_at")
+
+
+class LoyaltyCardIssueSerializer(serializers.Serializer):
+    customer_name = serializers.CharField(max_length=100)
+    phone_number = serializers.CharField(max_length=32)
+
+    def validate_phone_number(self, value):
+        normalized = normalize_phone_number(value)
+        if not normalized:
+            raise serializers.ValidationError("Phone number must contain digits.")
+        if len(normalized) > 20:
+            raise serializers.ValidationError("Phone number is too long after normalization.")
+        return normalized
