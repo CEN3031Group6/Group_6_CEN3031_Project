@@ -1,6 +1,8 @@
 // src/pages/home.tsx
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+
 export default function HomePage() {
   const [msg, setMsg] = useState("Click to ping backend");
 
@@ -15,13 +17,13 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/60">
       <div className="bg-white p-6 rounded-2xl shadow w-80 text-center">
         <h1 className="text-lg font-semibold mb-4">Connection Test</h1>
-        <button onClick={ping} className="bg-blue-600 text-white py-2 px-4 rounded">
+        <Button onClick={ping} className="w-full">
           Ping Backend
-        </button>
-        <p className="mt-3 text-gray-700">{msg}</p>
+        </Button>
+        <p className="mt-3 text-sm text-muted-foreground">{msg}</p>
       </div>
     </main>
   );

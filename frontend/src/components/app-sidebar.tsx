@@ -5,21 +5,19 @@ import {
   IconCamera,
   IconChartBar,
   IconDashboard,
-  IconDatabase,
   IconFileAi,
   IconFileDescription,
-  IconFileWord,
   IconFolder,
   IconHelp,
   IconInnerShadowTop,
   IconListDetails,
-  IconReport,
   IconSearch,
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { logoutRequest } from "@/lib/api"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
@@ -34,15 +32,10 @@ import {
 } from "@/components/ui/sidebar"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
@@ -52,11 +45,11 @@ const data = {
     },
     {
       title: "Station",
-      url: "#",
+      url: "/stations",
       icon: IconChartBar,
     },
     {
-      title: "Customer",
+      title: "Customers",
       url: "#",
       icon: IconFolder,
     },
@@ -136,16 +129,16 @@ const data = {
       icon: IconSearch,
     },
   ],
-  documents: [
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, loading, refresh } = useCurrentUser()
+
+  const handleLogout = React.useCallback(async () => {
+    await logoutRequest()
+    await refresh()
+  }, [refresh])
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -165,11 +158,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user ?? null} loading={loading} onLogout={user ? handleLogout : undefined} />
       </SidebarFooter>
     </Sidebar>
   )
