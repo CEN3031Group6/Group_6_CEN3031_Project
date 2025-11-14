@@ -78,7 +78,9 @@ class TransactionSerializer(serializers.ModelSerializer):
     loyalty_card_id = serializers.PrimaryKeyRelatedField(
         queryset = LoyaltyCard.objects.all(),
         source = "loyalty_card",
-        write_only = True
+        write_only = True,
+        required = False,
+        allow_null = True
     )
 
     redeem = serializers.BooleanField(write_only=True, default=False)
@@ -91,12 +93,21 @@ class TransactionSerializer(serializers.ModelSerializer):
         return value
 
     def validate_loyalty_card(self, value):
+        if value is None:
+            return value
         request = self.context.get("request")
         user = getattr(request, "user", None)
         biz = getattr(user, "business", None) if user else None
         if biz and value.business_customer.business_id != biz.pk:
             raise serializers.ValidationError("Loyalty card does not belong to your business.")
         return value
+
+    def validate(self, attrs):
+        loyalty_card = attrs.get("loyalty_card")
+        redeem = attrs.get("redeem", False)
+        if redeem and loyalty_card is None:
+            raise serializers.ValidationError({"redeem": "Cannot redeem rewards without a loyalty card."})
+        return attrs
 
     class Meta:
         model = Transaction

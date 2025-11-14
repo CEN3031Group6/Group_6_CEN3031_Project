@@ -4,6 +4,7 @@ from .views import (
     BusinessLogoutView,
     BusinessSignupView,
     CurrentUserView,
+    PasswordUpdateView,
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path("login/", BusinessLoginView.as_view(), name="accounts-login"),
     path("logout/", BusinessLogoutView.as_view(), name="accounts-logout"),
     path("me/", CurrentUserView.as_view(), name="accounts-me"),
+    path("password/", PasswordUpdateView.as_view(), name="accounts-password"),
 ]

@@ -1,6 +1,11 @@
 import * as React from "react"
 import Link from "next/link"
 
+import { DashboardMetrics, useDashboardMetrics } from "@/hooks/use-dashboard-metrics"
+import { useDashboardDetails } from "@/hooks/use-dashboard-details"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import type { RecentTransaction, StationReadiness, TopCustomer } from "@/lib/api"
+import { formatCurrency, formatNumber, formatPoints } from "@/lib/number"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { SiteHeader } from "@/components/site-header"
@@ -31,89 +36,78 @@ import { Separator } from "@/components/ui/separator"
 import {
   IconTrendingDown,
   IconTrendingUp,
+  IconMinus,
 } from "@tabler/icons-react"
 
-const kpis = [
+type KPIDefinition = {
+  label: string
+  key: keyof DashboardMetrics
+  prevKey: keyof DashboardMetrics
+  caption: string
+}
+
+const KPI_DEFINITIONS: KPIDefinition[] = [
   {
     label: "Active Loyalty Cards",
-    value: "1,248",
-    change: "+4.2%",
-    trend: "up",
+    key: "active_loyalty_cards",
+    prevKey: "active_loyalty_cards_prev",
     caption: "Cards in circulation this week",
   },
   {
     label: "Repeat Customers",
-    value: "682",
-    change: "+38",
-    trend: "up",
+    key: "repeat_customers",
+    prevKey: "repeat_customers_prev",
     caption: "Members with 2+ visits",
   },
   {
     label: "Points Redeemed (7d)",
-    value: "94,210",
-    change: "−8%",
-    trend: "down",
+    key: "points_redeemed_7d",
+    prevKey: "points_redeemed_prev",
     caption: "Redemptions vs prior week",
   },
   {
     label: "Wallet Pass Installs",
-    value: "312",
-    change: "+67",
-    trend: "up",
+    key: "wallet_pass_installs",
+    prevKey: "wallet_pass_prev",
     caption: "New installs this month",
   },
 ]
 
-const topCustomers = [
-  { name: "Dana Miles", visits: 18, points: 4_820 },
-  { name: "Chris Conway", visits: 14, points: 3_260 },
-  { name: "Jessie Harper", visits: 12, points: 2_910 },
-  { name: "Sam Lee", visits: 10, points: 2_100 },
-]
-
-const stationStatuses = [
-  { name: "Front Counter", status: "online", prepared: "Dana Miles", updated: "2 min ago" },
-  { name: "Drive Thru", status: "online", prepared: null, updated: "18 min ago" },
-  { name: "Lobby Kiosk", status: "offline", prepared: null, updated: "Yesterday" },
-  { name: "Pop-up Cart", status: "online", prepared: "Chris Conway", updated: "just now" },
-]
-
-const transactions = [
-  {
-    id: "TXN-8934",
-    customer: "Dana Miles",
-    station: "Front Counter",
-    amount: "$18.40",
-    points: "+28 pts",
-    time: "10:42 AM",
-  },
-  {
-    id: "TXN-8933",
-    customer: "Sam Lee",
-    station: "Drive Thru",
-    amount: "$32.10",
-    points: "+48 pts",
-    time: "9:58 AM",
-  },
-  {
-    id: "TXN-8932",
-    customer: "Chris Conway",
-    station: "Pop-up Cart",
-    amount: "$12.75",
-    points: "Redeemed 100 pts",
-    time: "9:15 AM",
-  },
-  {
-    id: "TXN-8931",
-    customer: "Jessie Harper",
-    station: "Front Counter",
-    amount: "$21.60",
-    points: "+32 pts",
-    time: "Yesterday",
-  },
-]
+const FALLBACK_STATIONS: StationReadiness[] = []
+const FALLBACK_TRANSACTIONS: RecentTransaction[] = []
+const FALLBACK_TOP_CUSTOMERS: TopCustomer[] = []
 
 export default function Page() {
+  const { user } = useCurrentUser()
+  const { data: metrics, loading: metricsLoading } = useDashboardMetrics()
+  const { data: details, loading: detailsLoading } = useDashboardDetails()
+  const dashboardLoading = metricsLoading || detailsLoading
+
+  const stationReadiness = details?.station_readiness ?? FALLBACK_STATIONS
+
+  const revenueTrend = details?.revenue_trend
+
+  const recentTransactions = details?.recent_transactions ?? FALLBACK_TRANSACTIONS
+  const topCustomers = details?.top_customers ?? FALLBACK_TOP_CUSTOMERS
+
+  const kpis = React.useMemo(
+    () =>
+      KPI_DEFINITIONS.map((item) => {
+        const current = metrics ? (metrics[item.key] as number | null) ?? null : null
+        const prev = metrics ? (metrics[item.prevKey] as number | null) ?? null : null
+        const delta = current !== null && prev !== null ? current - prev : null
+        const trend =
+          delta === null ? null : delta > 0 ? "up" : delta < 0 ? "down" : "flat"
+        return {
+          ...item,
+          value: formatNumber(current),
+          delta,
+          trend,
+        }
+      }),
+    [metrics],
+  )
+
   return (
     <SidebarProvider
       style={
@@ -126,19 +120,24 @@ export default function Page() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8">
+        <div
+          className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8"
+          aria-busy={dashboardLoading}
+        >
           <header className="rounded-2xl border bg-card px-6 py-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Overview • Week of Nov 10</p>
-                <h1 className="text-2xl font-semibold tracking-tight">Sunrise Coffee Loyalty</h1>
+                <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-white">
+                  {user?.business.name ?? "Loyalty Dashboard"}
+                </h1>
                 <p className="text-sm text-muted-foreground">
                   Track cards issued, wallet installs, and station readiness in one glance.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button variant="secondary" asChild>
-                  <Link href="/transactions/create">Create transaction</Link>
+                  <Link href="/CheckoutTransactions">Create transaction</Link>
                 </Button>
                 <Button>Create Loyalty Card</Button>
               </div>
@@ -151,22 +150,43 @@ export default function Page() {
                 <CardHeader>
                   <CardDescription>{stat.label}</CardDescription>
                   <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                    {stat.value}
+                    {metricsLoading && !metrics ? (
+                      <span className="text-muted-foreground">Loading…</span>
+                    ) : (
+                      stat.value
+                    )}
                   </CardTitle>
                   <CardAction>
-                    <Badge variant="outline">
-                      {stat.trend === "up" ? <IconTrendingUp /> : <IconTrendingDown />}
-                      {stat.change}
+                    <Badge
+                      variant="outline"
+                      className="border-border text-black dark:text-white"
+                    >
+                      {stat.trend === "down" ? (
+                        <IconTrendingDown className="size-4 text-black dark:text-white" />
+                      ) : stat.trend === "flat" ? (
+                        <IconMinus className="size-4 text-black dark:text-white" />
+                      ) : (
+                        <IconTrendingUp className="size-4 text-black dark:text-white" />
+                      )}
+                      {formatDelta(stat.delta)}
                     </Badge>
                   </CardAction>
                 </CardHeader>
                 <CardFooter className="flex-col items-start gap-1.5 text-sm">
                   <div className="line-clamp-1 flex gap-2 font-medium">
-                    {stat.trend === "up" ? "Trending up" : "Needs attention"}
-                    {stat.trend === "up" ? (
-                      <IconTrendingUp className="size-4" />
-                    ) : (
+                    {stat.trend === null
+                      ? "No change yet"
+                      : stat.trend === "up"
+                        ? "Trending up"
+                        : stat.trend === "down"
+                          ? "Needs attention"
+                          : "Holding steady"}
+                    {stat.trend === "down" ? (
                       <IconTrendingDown className="size-4" />
+                    ) : stat.trend === "flat" ? (
+                      <IconMinus className="size-4" />
+                    ) : (
+                      <IconTrendingUp className="size-4" />
                     )}
                   </div>
                   <div className="text-muted-foreground">{stat.caption}</div>
@@ -177,18 +197,17 @@ export default function Page() {
 
           <section className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2 shadow-xs">
-              <CardHeader className="flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <CardTitle>Station readiness</CardTitle>
-                  <CardDescription>Each station’s pass slot and device status.</CardDescription>
-                </div>
-                <Button variant="ghost" size="sm" className="text-sm">
-                  Manage stations
-                </Button>
+              <ChartAreaInteractive data={revenueTrend} />
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Station readiness</CardTitle>
+                <CardDescription>Each station’s pass slot and device status.</CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
                     <TableRow>
                       <TableHead>Station</TableHead>
                       <TableHead>Status</TableHead>
@@ -197,35 +216,41 @@ export default function Page() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stationStatuses.map((station) => (
-                      <TableRow key={station.name}>
-                        <TableCell className="font-medium">{station.name}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={station.status === "online" ? "secondary" : "destructive"}
-                            className={
-                              station.status === "online"
-                                ? "bg-primary/5 text-primary"
-                                : "bg-destructive/10 text-destructive"
-                            }
-                          >
-                            {station.status}
-                          </Badge>
+                    {stationReadiness.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                          No stations yet.
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {station.prepared ? station.prepared : "Empty"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{station.updated}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      stationReadiness.map((station) => (
+                        <TableRow key={station.id || station.name}>
+                          <TableCell className="font-medium">{station.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={station.status === "online" ? "secondary" : "destructive"}
+                              className={
+                                station.status === "online"
+                                  ? "bg-primary/5 text-primary"
+                                  : "bg-destructive/10 text-destructive"
+                              }
+                            >
+                              {station.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {station.prepared_slot?.customer ?? "Empty"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatRelativeDate(station.updated)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
-
-            <div className="lg:col-span-1">
-              <ChartAreaInteractive />
-            </div>
           </section>
 
           <section className="grid gap-6 lg:grid-cols-3">
@@ -241,7 +266,7 @@ export default function Page() {
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
                     <TableRow>
                       <TableHead>Customer</TableHead>
                       <TableHead>Station</TableHead>
@@ -251,15 +276,29 @@ export default function Page() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((txn) => (
-                      <TableRow key={txn.id}>
-                        <TableCell className="font-medium">{txn.customer}</TableCell>
-                        <TableCell>{txn.station}</TableCell>
-                        <TableCell>{txn.amount}</TableCell>
-                        <TableCell>{txn.points}</TableCell>
-                        <TableCell className="text-muted-foreground">{txn.time}</TableCell>
+                    {recentTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                          No transactions yet.
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      recentTransactions.map((txn) => (
+                        <TableRow key={txn.id}>
+                          <TableCell className="font-medium">{txn.customer}</TableCell>
+                          <TableCell>{txn.station}</TableCell>
+                          <TableCell>{formatCurrency(txn.amount)}</TableCell>
+                          <TableCell>
+                            {txn.points_redeemed > 0
+                              ? `Redeemed ${txn.points_redeemed} pts`
+                              : `+${txn.points_earned} pts`}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatRelativeDate(txn.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -271,15 +310,30 @@ export default function Page() {
                 <CardDescription>Based on visits and points banked.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {topCustomers.map((customer) => (
-                  <div key={customer.name} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{customer.name}</p>
-                      <p className="text-xs text-muted-foreground">{customer.visits} visits</p>
-                    </div>
-                    <Badge variant="outline">{customer.points.toLocaleString()} pts</Badge>
-                  </div>
-                ))}
+                {topCustomers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center">No customers yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Visits</TableHead>
+                        <TableHead className="text-right">Points</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topCustomers.map((customer) => (
+                        <TableRow key={customer.name}>
+                          <TableCell className="font-medium">{customer.name}</TableCell>
+                          <TableCell>{customer.visits}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="outline">{formatPoints(customer.points)}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
                 <Separator />
                 <Button variant="secondary" className="w-full">
                   Export customer list
@@ -291,4 +345,19 @@ export default function Page() {
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+function formatRelativeDate(value?: string | null) {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return date.toLocaleString()
+}
+
+function formatDelta(value: number | null) {
+  if (value === null) return "—"
+  const sign = value >= 0 ? "+" : "-"
+  return `${sign}${formatNumber(Math.abs(value))}`
 }

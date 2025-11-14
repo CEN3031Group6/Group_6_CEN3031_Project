@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import BusinessUser
-from api.models import Business, BusinessCustomer, Customer, LoyaltyCard, Station, PassRegistration
+from api.models import Business, BusinessCustomer, Customer, LoyaltyCard, Station, PassRegistration, Transaction
 from api.passkit import ensure_card_auth_token
 
 
@@ -406,3 +406,88 @@ class PassKitEndpointsTests(AuthenticatedBusinessAPITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/vnd.apple.pkpass")
+
+
+class DashboardMetricsTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("dashboard-metrics")
+        self.station = self.create_station()
+
+        repeat_customer = self.create_customer("Repeat Customer")
+        self.repeat_bc = BusinessCustomer.objects.create(
+            business=self.business,
+            customer=repeat_customer,
+        )
+        self.repeat_card = LoyaltyCard.objects.create(business_customer=self.repeat_bc)
+
+        single_customer = self.create_customer("Single Customer")
+        self.single_bc = BusinessCustomer.objects.create(
+            business=self.business,
+            customer=single_customer,
+        )
+        self.single_card = LoyaltyCard.objects.create(business_customer=self.single_bc)
+
+        Transaction.objects.create(
+            loyalty_card=self.repeat_card,
+            station=self.station,
+            amount=Decimal("10.00"),
+            points_earned=10,
+            points_redeemed=100,
+        )
+        Transaction.objects.create(
+            loyalty_card=self.repeat_card,
+            station=self.station,
+            amount=Decimal("5.00"),
+            points_earned=5,
+            points_redeemed=0,
+        )
+        Transaction.objects.create(
+            loyalty_card=self.single_card,
+            station=self.station,
+            amount=Decimal("8.00"),
+            points_earned=8,
+            points_redeemed=0,
+        )
+
+        PassRegistration.objects.create(
+            loyalty_card=self.repeat_card,
+            device_library_identifier="device-123",
+            pass_type_identifier="pass.test",
+            push_token="push-token",
+        )
+
+    def test_dashboard_metrics(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["active_loyalty_cards"], 2)
+        self.assertEqual(response.data["repeat_customers"], 1)
+        self.assertEqual(response.data["wallet_pass_installs"], 1)
+        self.assertEqual(response.data["points_redeemed_7d"], 100)
+
+
+class DashboardDetailTests(AuthenticatedBusinessAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("dashboard-data")
+        self.station = self.create_station()
+
+        cust = self.create_customer("Detail Dana")
+        bc = BusinessCustomer.objects.create(business=self.business, customer=cust)
+        card = LoyaltyCard.objects.create(business_customer=bc)
+
+        Transaction.objects.create(
+            loyalty_card=card,
+            station=self.station,
+            amount=Decimal("12.34"),
+            points_earned=12,
+            points_redeemed=0,
+        )
+
+    def test_dashboard_detail_payload(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("station_readiness", response.data)
+        self.assertIn("revenue_trend", response.data)
+        self.assertIn("recent_transactions", response.data)
+        self.assertIn("top_customers", response.data)
