@@ -48,3 +48,101 @@ class BusinessSignupViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("business_name", response.data)
+
+
+class BusinessAuthViewTests(APITestCase):
+    def setUp(self):
+        self.business = Business.objects.create(
+            name="Auth Biz",
+            reward_rate=Decimal("1.0"),
+            redemption_points=100,
+            redemption_rate=Decimal("0.10"),
+            logo_url="https://example.com/logo.png",
+            primary_color="#000000",
+            background_color="#ffffff",
+        )
+        self.user = BusinessUser.objects.create_user(
+            username="owner1",
+            email="owner@example.com",
+            password="pass1234",
+            business=self.business,
+        )
+
+    def test_login_with_username(self):
+        response = self.client.post(
+            reverse("accounts-login"),
+            {"username": "owner1", "password": "pass1234"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["business"]["name"], self.business.name)
+
+    def test_login_with_email(self):
+        response = self.client.post(
+            reverse("accounts-login"),
+            {"username": "owner@example.com", "password": "pass1234"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_login_rejects_invalid_credentials(self):
+        response = self.client.post(
+            reverse("accounts-login"),
+            {"username": "owner1", "password": "wrong"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
+
+class CurrentUserViewTests(APITestCase):
+    def setUp(self):
+        self.business = Business.objects.create(
+            name="Current User Biz",
+            reward_rate=Decimal("1.0"),
+            redemption_points=100,
+            redemption_rate=Decimal("0.10"),
+            logo_url="https://example.com/logo.png",
+            primary_color="#000000",
+            background_color="#ffffff",
+        )
+        self.user = BusinessUser.objects.create_user(
+            username="currentuser",
+            password="pass1234",
+            business=self.business,
+        )
+
+    def test_requires_authentication(self):
+        response = self.client.get(reverse("accounts-me"))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_returns_user_when_authenticated(self):
+        self.client.login(username="currentuser", password="pass1234")
+        response = self.client.get(reverse("accounts-me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["business"]["name"], self.business.name)
+
+
+class LogoutViewTests(APITestCase):
+    def setUp(self):
+        self.business = Business.objects.create(
+            name="Logout Biz",
+            reward_rate=Decimal("1.0"),
+            redemption_points=100,
+            redemption_rate=Decimal("0.10"),
+            logo_url="https://example.com/logo.png",
+            primary_color="#000000",
+            background_color="#ffffff",
+        )
+        self.user = BusinessUser.objects.create_user(
+            username="logoutuser",
+            password="pass1234",
+            business=self.business,
+        )
+
+    def test_logout_clears_session(self):
+        self.client.login(username="logoutuser", password="pass1234")
+        response = self.client.post(reverse("accounts-logout"))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        me_response = self.client.get(reverse("accounts-me"))
+        self.assertEqual(me_response.status_code, status.HTTP_403_FORBIDDEN)
