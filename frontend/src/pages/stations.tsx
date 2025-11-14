@@ -484,12 +484,6 @@ function MetricCard({
   )
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return "—"
   const date = new Date(value)

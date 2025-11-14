@@ -208,7 +208,9 @@ class Transaction(models.Model):
 
     loyalty_card = models.ForeignKey(
         LoyaltyCard,
-        on_delete = models.CASCADE
+        on_delete = models.CASCADE,
+        null = True,
+        blank = True
     )
 
     station = models.ForeignKey(

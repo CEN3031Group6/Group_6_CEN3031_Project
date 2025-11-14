@@ -146,3 +146,33 @@ class LogoutViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         me_response = self.client.get(reverse("accounts-me"))
         self.assertEqual(me_response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PasswordUpdateTests(APITestCase):
+    def setUp(self):
+        self.business = Business.objects.create(
+            name="Password Biz",
+            reward_rate=Decimal("1.0"),
+            redemption_points=100,
+            redemption_rate=Decimal("0.10"),
+            logo_url="https://example.com/logo.png",
+            primary_color="#000000",
+            background_color="#ffffff",
+        )
+        self.user = BusinessUser.objects.create_user(
+            username="passworduser",
+            password="oldpass123",
+            business=self.business,
+        )
+        self.client.login(username="passworduser", password="oldpass123")
+
+    def test_password_change(self):
+        response = self.client.post(
+            reverse("accounts-password"),
+            {"current_password": "oldpass123", "new_password": "newpass456"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.client.logout() is None)
+        login_success = self.client.login(username="passworduser", password="newpass456")
+        self.assertTrue(login_success)

@@ -40,7 +40,7 @@ const data = {
     },
     {
       title: "Account",
-      url: "#",
+      url: "/account",
       icon: IconListDetails,
     },
     {
@@ -50,7 +50,7 @@ const data = {
     },
     {
       title: "Customers",
-      url: "#",
+      url: "/customers",
       icon: IconFolder,
     },
     {
@@ -60,7 +60,7 @@ const data = {
     },
     {
       title: "Checkout & Transactions",
-      url: "#",
+      url: "CheckoutTransactions",
       icon: IconUsers,
     },
   ],
