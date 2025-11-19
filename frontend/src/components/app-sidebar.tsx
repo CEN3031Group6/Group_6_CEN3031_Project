@@ -116,8 +116,8 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Home",
-      url: "/home/",
+      title: "User Home",
+      url: "/homeLoggedIn/",
       icon: IconHome,
     },
   ],
