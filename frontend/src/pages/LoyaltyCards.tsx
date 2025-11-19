@@ -48,7 +48,39 @@ const API_BASE_URL =
 const STATION_TOKEN =
   process.env.NEXT_PUBLIC_STATION_TOKEN ?? ""
 
+type ThemeMode = "light" | "dark"
+
 export default function LoyaltyCardsPage() {
+
+  const [theme, setTheme] = React.useState<ThemeMode>("light")
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return
+
+    const root = document.documentElement
+    const getThemeFromDom = (): ThemeMode =>
+      root.dataset.theme === "dark" ? "dark" : "light"
+
+    setTheme(getThemeFromDom())
+
+    const observer = new MutationObserver(() => {
+      setTheme(getThemeFromDom())
+    })
+
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const pageBgClass =
+    theme === "dark"
+      ? "bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
+      : "bg-white text-black"
+
+  const footerClass =
+    theme === "dark"
+      ? "mt-auto w-full bg-black text-white border-t border-blue-900/50"
+      : "mt-auto w-full bg-white text-black border-t border-zinc-200"
   const [customers, setCustomers] = React.useState<LoyaltyCustomer[]>([])
   const [form, setForm] = React.useState({ name: "", phone: "" })
   const [loading, setLoading] = React.useState(false)
@@ -193,7 +225,7 @@ export default function LoyaltyCardsPage() {
       <SidebarInset>
         <SiteHeader />
 
-        <div className="flex flex-1 flex-col gap-4 px-4 py-4 lg:px-6 lg:py-6">
+        <div className={`flex flex-1 flex-col gap-4 px-4 py-4 lg:px-6 lg:py-6 ${pageBgClass}`}>
           <h1 className="text-2xl font-semibold tracking-tight">
             Loyalty Cards
           </h1>
@@ -280,6 +312,22 @@ export default function LoyaltyCardsPage() {
             </div>
           </div>
         </div>
+
+        <footer className={footerClass}>
+          <div className="w-full px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="LoyaltyPass Logo"
+                className="size-8 object-contain mix-blend-darken"
+              />
+              <span className="font-medium">LoyaltyPass Inc.</span>
+            </div>
+            <p className={theme === "dark" ? "text-sm text-white/70" : "text-sm text-black/70"}>
+              © {new Date().getFullYear()} LoyaltyPass Inc. All rights reserved.
+            </p>
+          </div>
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   )

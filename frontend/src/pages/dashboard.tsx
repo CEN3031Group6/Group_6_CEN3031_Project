@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import Link from "next/link"
 
@@ -77,7 +79,39 @@ const FALLBACK_STATIONS: StationReadiness[] = []
 const FALLBACK_TRANSACTIONS: RecentTransaction[] = []
 const FALLBACK_TOP_CUSTOMERS: TopCustomer[] = []
 
+type ThemeMode = "light" | "dark"
+
 export default function Page() {
+
+  const [theme, setTheme] = React.useState<ThemeMode>("light")
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return
+
+    const root = document.documentElement
+    const getThemeFromDom = (): ThemeMode =>
+      root.dataset.theme === "dark" ? "dark" : "light"
+
+    setTheme(getThemeFromDom())
+
+    const observer = new MutationObserver(() => {
+      setTheme(getThemeFromDom())
+    })
+
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const pageBgClass =
+    theme === "dark"
+      ? "bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
+      : "bg-white text-black"
+
+  const footerClass =
+    theme === "dark"
+      ? "mt-auto w-full bg-black text-white border-t border-blue-900/50"
+      : "mt-auto w-full bg-white text-black border-t border-zinc-200"
   const { user } = useCurrentUser()
   const { data: metrics, loading: metricsLoading } = useDashboardMetrics()
   const { data: details, loading: detailsLoading } = useDashboardDetails()
@@ -121,7 +155,7 @@ export default function Page() {
       <SidebarInset>
         <SiteHeader />
         <div
-          className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8"
+          className={`flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8 ${pageBgClass}`}
           aria-busy={dashboardLoading}
         >
           <header className="rounded-2xl border bg-card px-6 py-5 shadow-sm">
@@ -342,6 +376,22 @@ export default function Page() {
             </Card>
           </section>
         </div>
+
+        <footer className={footerClass}>
+          <div className="w-full px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="LoyaltyPass Logo"
+                className="size-8 object-contain mix-blend-darken"
+              />
+              <span className="font-medium">LoyaltyPass Inc.</span>
+            </div>
+            <p className={theme === "dark" ? "text-sm text-white/70" : "text-sm text-black/70"}>
+              © {new Date().getFullYear()} LoyaltyPass Inc. All rights reserved.
+            </p>
+          </div>
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   )
