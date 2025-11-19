@@ -55,7 +55,7 @@ const data = {
     },
     {
       title: "Loyalty Cards",
-      url: "#",
+      url: "/LoyaltyCards",
       icon: IconUsers,
     },
     {
