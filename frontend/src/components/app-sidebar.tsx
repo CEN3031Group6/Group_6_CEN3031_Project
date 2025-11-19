@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"  // ADD THIS IMPORT
 import {
   IconCamera,
   IconChartBar,
@@ -132,12 +133,14 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter()
   const { user, loading, refresh } = useCurrentUser()
 
   const handleLogout = React.useCallback(async () => {
     await logoutRequest()
     await refresh()
-  }, [refresh])
+    router.push("/login")
+  }, [refresh, router])
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
