@@ -91,20 +91,33 @@ export default function StationsPage() {
 
   const cardBaseClass =
     theme === "dark"
-      ? "bg-black text-white border border-blue-900/60 rounded-2xl shadow-lg shadow-black/30"
-      : "bg-white text-black border border-zinc-200 rounded-2xl shadow-sm"
+      ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
+      : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
 
   const inputClass =
     theme === "dark"
-      ? "bg-black border border-blue-500/60 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
-      : "bg-white border border-zinc-300 text-black placeholder:text-zinc-400 focus-visible:ring-zinc-500"
+      ? "bg-black border border-blue-400 focus-visible:ring-blue-500 text-white placeholder:text-gray-400 rounded-md"
+      : "bg-white border border-zinc-300 text-black placeholder:text-zinc-400 focus-visible:ring-zinc-500 rounded-md"
 
-  const tableHeaderTextClass =
-    theme === "dark" ? "text-slate-200" : "text-zinc-500"
-  const tableCellTextClass =
-    theme === "dark" ? "text-white" : "text-black"
-  const tableMutedTextClass =
-    theme === "dark" ? "text-slate-400" : "text-zinc-500"
+  const tableCellTextClass = theme === "dark" ? "text-white" : "text-black"
+  const tableMutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
+
+  const primaryButtonClass =
+    theme === "dark"
+      ? "bg-[#0A4CFF] hover:bg-[#0840D6] text-white border border-[#0A4CFF] rounded-md"
+      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
+
+  const outlineButtonClass =
+    theme === "dark"
+      ? "border border-blue-400 text-blue-300 hover:bg-blue-900/20 rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
+
+  const defaultButtonClass =
+    theme === "dark"
+      ? "bg-zinc-800 hover:bg-zinc-700 text-white rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
+
+  const mutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
 
   const [stations, setStations] = React.useState<ApiStation[]>([])
   const [stationName, setStationName] = React.useState("")
@@ -320,13 +333,7 @@ export default function StationsPage() {
             <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle>Device Station</CardTitle>
-                <CardDescription
-                  className={
-                    theme === "dark"
-                      ? "text-slate-300"
-                      : "text-zinc-500"
-                  }
-                >
+                <CardDescription className={mutedTextClass}>
                   Select which station this device represents. All loyalty card
                   issuance and checkout actions will use its token
                   automatically.
@@ -340,19 +347,17 @@ export default function StationsPage() {
                   <code className="rounded bg-zinc-100 text-zinc-800 dark:bg-slate-900 dark:text-slate-100 px-2 py-1 text-xs">
                     {activeStation.token}
                   </code>
-                  <Button variant="ghost" size="sm" onClick={clearRememberedStation}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearRememberedStation}
+                    className={outlineButtonClass}
+                  >
                     Forget this device
                   </Button>
                 </div>
               ) : (
-                <span
-                  className={cn(
-                    "text-sm",
-                    theme === "dark"
-                      ? "text-slate-300"
-                      : "text-zinc-600",
-                  )}
-                >
+                <span className={cn("text-sm", mutedTextClass)}>
                   No station selected for this device yet.
                 </span>
               )}
@@ -362,13 +367,7 @@ export default function StationsPage() {
           <Card className={cardBaseClass}>
             <CardHeader>
               <CardTitle>Create a Station</CardTitle>
-              <CardDescription
-                className={
-                  theme === "dark"
-                    ? "text-slate-300"
-                    : "text-zinc-500"
-                }
-              >
+              <CardDescription className={mutedTextClass}>
                 Each physical device needs a Station token. Generate it once and
                 store it on the device securely.
               </CardDescription>
@@ -386,7 +385,7 @@ export default function StationsPage() {
                   className={inputClass}
                 />
                 <Button
-                  className="md:min-w-[160px]"
+                  className={cn("md:min-w-[160px]", primaryButtonClass)}
                   disabled={!stationName.trim() || isSubmitting}
                 >
                   {isSubmitting ? "Creating…" : "Create Station"}
@@ -398,44 +397,21 @@ export default function StationsPage() {
           <Card className={cardBaseClass}>
             <CardHeader>
               <CardTitle>Registered Stations</CardTitle>
-              <CardDescription
-                className={
-                  theme === "dark"
-                    ? "text-slate-300"
-                    : "text-zinc-500"
-                }
-              >
+              <CardDescription className={mutedTextClass}>
                 Copy the Station token to configure a new device or clear the
                 prepared slot if a pass was already handed out.
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-transparent [&_th]:text-black dark:[&_th]:text-white">
                   <TableRow>
-                    <TableHead className={tableHeaderTextClass}>
-                      Station
-                    </TableHead>
-                    <TableHead className={tableHeaderTextClass}>
-                      Status
-                    </TableHead>
-                    <TableHead className={tableHeaderTextClass}>
-                      Prepared Slot
-                    </TableHead>
-                    <TableHead className={tableHeaderTextClass}>
-                      Station Token
-                    </TableHead>
-                    <TableHead className={tableHeaderTextClass}>
-                      Last Activity
-                    </TableHead>
-                    <TableHead
-                      className={cn(
-                        "text-right",
-                        tableHeaderTextClass,
-                      )}
-                    >
-                      Actions
-                    </TableHead>
+                    <TableHead>Station</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Prepared Slot</TableHead>
+                    <TableHead>Station Token</TableHead>
+                    <TableHead>Last Activity</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -443,10 +419,7 @@ export default function StationsPage() {
                     <TableRow>
                       <TableCell
                         colSpan={6}
-                        className={cn(
-                          "text-center text-sm",
-                          tableMutedTextClass,
-                        )}
+                        className={cn("text-center text-sm", tableMutedTextClass)}
                       >
                         <div className="flex items-center justify-center gap-2">
                           <IconLoader2 className="size-4 animate-spin" />
@@ -459,10 +432,7 @@ export default function StationsPage() {
                     <TableRow>
                       <TableCell
                         colSpan={6}
-                        className={cn(
-                          "text-center text-sm",
-                          tableMutedTextClass,
-                        )}
+                        className={cn("text-center text-sm", tableMutedTextClass)}
                       >
                         No stations yet. Create one above to get started.
                       </TableCell>
@@ -486,9 +456,7 @@ export default function StationsPage() {
                               : "text-zinc-600 dark:text-slate-300 border-zinc-300 dark:border-slate-600",
                           )}
                         >
-                          {station.prepared_loyalty_card
-                            ? "Card Ready"
-                            : "Idle"}
+                          {station.prepared_loyalty_card ? "Card Ready" : "Idle"}
                         </Badge>
                       </TableCell>
                       <TableCell className={tableCellTextClass}>
@@ -497,19 +465,12 @@ export default function StationsPage() {
                             <span className="font-medium">
                               Token {station.prepared_loyalty_card}
                             </span>
-                            <span
-                              className={cn(
-                                "text-xs",
-                                tableMutedTextClass,
-                              )}
-                            >
+                            <span className={cn("text-xs", tableMutedTextClass)}>
                               Waiting on NFC tap
                             </span>
                           </div>
                         ) : (
-                          <span className={tableMutedTextClass}>
-                            Empty
-                          </span>
+                          <span className={tableMutedTextClass}>Empty</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -528,10 +489,7 @@ export default function StationsPage() {
                             size="icon"
                             variant="ghost"
                             onClick={() =>
-                              handleCopyToken(
-                                station.api_token,
-                                station.id,
-                              )
+                              handleCopyToken(station.api_token, station.id)
                             }
                             aria-label="Copy station token"
                           >
@@ -544,10 +502,7 @@ export default function StationsPage() {
                         </div>
                       </TableCell>
                       <TableCell
-                        className={cn(
-                          "font-medium",
-                          tableCellTextClass,
-                        )}
+                        className={cn("font-medium", tableCellTextClass)}
                       >
                         {station.updated_at || station.prepared_at || "—"}
                       </TableCell>
@@ -561,6 +516,7 @@ export default function StationsPage() {
                             }
                             size="sm"
                             onClick={() => rememberStation(station)}
+                            className={primaryButtonClass}
                           >
                             {activeStation?.id === station.id
                               ? "Using on this device"
@@ -574,16 +530,16 @@ export default function StationsPage() {
                               !station.prepared_loyalty_card ||
                               clearingId === station.id
                             }
+                            className={outlineButtonClass}
                           >
-                            {clearingId === station.id
-                              ? "Clearing…"
-                              : "Clear Slot"}
+                            {clearingId === station.id ? "Clearing…" : "Clear Slot"}
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteStation(station)}
                             disabled={deletingId === station.id}
+                            className={defaultButtonClass}
                           >
                             <IconTrash className="size-4 text-destructive" />
                           </Button>
@@ -603,7 +559,11 @@ export default function StationsPage() {
               <img
                 src="/logo.png"
                 alt="LoyaltyPass Logo"
-                className="size-8 object-contain"
+                className={
+                  theme === "dark"
+                    ? "size-8 object-contain"
+                    : "size-8 object-contain mix-blend-darken"
+                }
               />
               <span className="font-medium">LoyaltyPass Inc.</span>
             </div>
@@ -632,7 +592,7 @@ function StationsHeader({ theme }: { theme: ThemeMode }) {
   const deployButtonClass =
     theme === "dark"
       ? "border border-blue-500 !text-white hover:bg-blue-500/10"
-      : "border border-zinc-300 !text-black hover:bg-zinc-100"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100"
 
   return (
     <header
@@ -734,8 +694,8 @@ function MetricCard({
     <Card
       className={
         theme === "dark"
-          ? "bg-black text-white border border-blue-900/60 rounded-2xl shadow-lg shadow-black/30"
-          : "bg-white text-black border border-zinc-200 rounded-2xl shadow-sm"
+          ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
+          : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
       }
     >
       <CardContent className="flex items-center gap-4 p-6">
