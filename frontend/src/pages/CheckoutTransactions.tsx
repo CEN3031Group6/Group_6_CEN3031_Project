@@ -42,13 +42,79 @@ type DeviceStationSelection = {
   token: string
 }
 
-// QR Scanner (no SSR)
+type ThemeMode = "light" | "dark"
+
 const QrScanner = dynamic(
   () => import("@yudiel/react-qr-scanner").then((m) => m.Scanner),
   { ssr: false },
 )
 
 export default function CheckoutTransactionsPage() {
+  const [theme, setTheme] = React.useState<ThemeMode>("light")
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return
+
+    const root = document.documentElement
+    const getThemeFromDom = (): ThemeMode =>
+      root.dataset.theme === "dark" ? "dark" : "light"
+
+    setTheme(getThemeFromDom())
+
+    const observer = new MutationObserver(() => {
+      setTheme(getThemeFromDom())
+    })
+
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const pageBgClass =
+    theme === "dark"
+      ? "bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
+      : "bg-white text-black"
+
+  const cardClass =
+    theme === "dark"
+      ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
+      : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
+
+  const headerLabelClass =
+    theme === "dark"
+      ? "text-xs font-medium uppercase tracking-wide text-blue-300"
+      : "text-xs font-medium uppercase tracking-wide text-zinc-400"
+
+  const primaryButtonClass =
+    theme === "dark"
+      ? "bg-[#0A4CFF] hover:bg-[#0840D6] text-white border border-[#0A4CFF] rounded-md"
+      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
+
+  const outlineButtonClass =
+    theme === "dark"
+      ? "border border-blue-400 text-blue-300 hover:bg-blue-900/20 rounded-md"
+      : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 rounded-md"
+
+  const inputClass =
+    theme === "dark"
+      ? "bg-black border border-blue-400 focus-visible:ring-blue-500 text-white placeholder:text-gray-400 rounded-md"
+      : "bg-white border border-zinc-300 focus-visible:ring-zinc-500 text-black placeholder:text-zinc-400 rounded-md"
+
+  const titleTextClass = theme === "dark" ? "text-sky-50" : "text-black"
+  const mutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
+  const subtleAccentTextClass = theme === "dark" ? "text-cyan-200" : "text-black"
+  const tableHeaderTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
+  const tableRowHoverClass = theme === "dark" ? "hover:bg-slate-900/60" : "hover:bg-zinc-50"
+  const codeClass =
+    theme === "dark"
+      ? "rounded bg-slate-900/70 px-2 py-1 text-xs text-cyan-300 border border-cyan-500/30"
+      : "rounded bg-zinc-100 px-2 py-1 text-xs text-black border border-zinc-300"
+
+  const footerClass =
+    theme === "dark"
+      ? "mt-auto w-full bg-black text-white border-t border-blue-900/50"
+      : "mt-auto w-full bg-white text-black border-t border-zinc-200"
+
   const [transactions, setTransactions] = React.useState<TransactionRecord[]>([])
   const [transactionsLoading, setTransactionsLoading] = React.useState(true)
   const [transactionsError, setTransactionsError] = React.useState<string | null>(null)
@@ -286,27 +352,33 @@ export default function CheckoutTransactionsPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8">
-          <header className="rounded-2xl border bg-card px-6 py-5 shadow-sm">
+        <div
+          className={`flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8 ${pageBgClass}`}
+        >
+          <header className={`rounded-2xl px-6 py-5 ${cardClass}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Checkout &amp; loyalty</p>
-                <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-white">
+                <p className={headerLabelClass}>Checkout &amp; loyalty</p>
+                <h1 className={`mt-1 text-2xl font-semibold tracking-tight ${titleTextClass}`}>
                   Transactions
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className={`mt-1 text-sm ${mutedTextClass}`}>
                   Scan a wallet pass, optionally redeem a reward, and record the purchase with your station token.
                 </p>
               </div>
               <div className="flex flex-col items-start gap-1 text-left text-sm lg:items-end">
-                <span className="text-muted-foreground">Active station</span>
+                <span className={`text-xs uppercase tracking-wide ${mutedTextClass}`}>
+                  Active station
+                </span>
                 {station ? (
                   <>
-                    <span className="text-base font-semibold text-black dark:text-white">{station.name}</span>
-                    <code className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">{station.token}</code>
+                    <span className={`text-base font-semibold ${titleTextClass}`}>{station.name}</span>
+                    <code className={codeClass}>
+                      {station.token}
+                    </code>
                   </>
                 ) : (
-                  <span className="flex items-center gap-2 text-destructive">
+                  <span className={`flex items-center gap-2 ${theme === "dark" ? "text-amber-300" : "text-amber-600"}`}>
                     No station selected. Configure one on the Stations page.
                   </span>
                 )}
@@ -315,24 +387,32 @@ export default function CheckoutTransactionsPage() {
           </header>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>QR &amp; reward actions</CardTitle>
-                <CardDescription>Scan a loyalty pass or toggle a reward before checkout.</CardDescription>
+                <CardTitle className={titleTextClass}>QR &amp; reward actions</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Scan a loyalty pass or toggle a reward before checkout.
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="text-sm text-muted-foreground">
+                <div className={`text-sm ${mutedTextClass}`}>
                   {lastScannedCode ? (
                     <p>
                       Linked pass token:
-                      <span className="ml-1 font-mono text-foreground">{lastScannedCode}</span>
+                      <span className={`ml-1 font-mono ${theme === "dark" ? "text-cyan-300" : "text-blue-700"}`}>
+                        {lastScannedCode}
+                      </span>
                     </p>
                   ) : (
                     <p>No pass scanned yet.</p>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => void handleOpenScanner()} disabled={!station || preparingScanner}>
+                  <Button
+                    onClick={() => void handleOpenScanner()}
+                    disabled={!station || preparingScanner}
+                    className={!station ? outlineButtonClass : primaryButtonClass}
+                  >
                     {station ? (preparingScanner ? "Starting camera…" : "Scan QR code") : "Select station first"}
                   </Button>
                   <Button
@@ -340,35 +420,51 @@ export default function CheckoutTransactionsPage() {
                     variant={redeemReward ? "default" : "outline"}
                     onClick={handleRedeemToggle}
                     disabled={!linkedCard}
+                    className={redeemReward ? outlineButtonClass : primaryButtonClass}
                   >
                     {redeemReward ? "Reward applied" : "Redeem reward"}
                   </Button>
                 </div>
               </CardContent>
               {!station && (
-                <CardFooter className="justify-between text-sm text-muted-foreground">
+                <CardFooter className={`justify-between text-sm ${mutedTextClass}`}>
                   <span>Need a station token?</span>
-                  <Button asChild variant="ghost" size="sm">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className={theme === "dark" ? "text-cyan-300 hover:text-cyan-200" : "text-blue-600 hover:text-blue-500"}
+                  >
                     <Link href="/stations">Go to Stations</Link>
                   </Button>
                 </CardFooter>
               )}
             </Card>
 
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>Linked loyalty pass</CardTitle>
-                <CardDescription>Scan the wallet QR or paste the pass token below.</CardDescription>
+                <CardTitle className={titleTextClass}>Linked loyalty pass</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Scan the wallet QR or paste the pass token below.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {linkedCard ? (
-                  <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                    <p className="text-sm font-medium text-foreground">{customerName}</p>
-                    <p className="text-xs text-muted-foreground">Token: {loyaltyToken}</p>
-                    <p className="text-sm font-medium text-foreground">Balance: {formatPoints(linkedCard.points_balance)}</p>
+                  <div
+                    className={
+                      theme === "dark"
+                        ? "rounded-lg border border-cyan-500/40 bg-slate-900/60 px-4 py-3 shadow-[0_0_20px_rgba(34,211,238,0.5)]"
+                        : "rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+                    }
+                  >
+                    <p className={`text-sm font-medium ${titleTextClass}`}>{customerName}</p>
+                    <p className={theme === "dark" ? "text-xs text-cyan-300" : "text-xs text-zinc-600"}>Token: {loyaltyToken}</p>
+                    <p className={`mt-1 text-sm font-medium ${titleTextClass}`}>
+                      Balance: {formatPoints(linkedCard.points_balance)}
+                    </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className={`text-sm ${mutedTextClass}`}>
                     No loyalty pass linked yet. Use the scanner or paste a token to load one.
                   </p>
                 )}
@@ -378,8 +474,13 @@ export default function CheckoutTransactionsPage() {
                     onChange={(event) => setLoyaltyTokenInput(event.target.value)}
                     placeholder="Paste loyalty token"
                     aria-label="Loyalty card token"
+                    className={inputClass}
                   />
-                  <Button type="submit" disabled={cardLookupLoading || !loyaltyTokenInput.trim()}>
+                  <Button
+                    type="submit"
+                    disabled={cardLookupLoading || !loyaltyTokenInput.trim()}
+                    className={primaryButtonClass}
+                  >
                     {cardLookupLoading ? "Linking…" : "Link card"}
                   </Button>
                 </form>
@@ -388,13 +489,15 @@ export default function CheckoutTransactionsPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>Transaction amount</CardTitle>
-                <CardDescription>Enter the purchase total before rewards.</CardDescription>
+                <CardTitle className={titleTextClass}>Transaction amount</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Enter the purchase total before rewards.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <label className="text-sm font-medium text-foreground" htmlFor="transaction-amount">
+                <label className={`text-sm font-medium ${titleTextClass}`} htmlFor="transaction-amount">
                   Amount (USD)
                 </label>
                 <Input
@@ -405,10 +508,11 @@ export default function CheckoutTransactionsPage() {
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0.00"
+                  className={inputClass}
                 />
                 <Button
                   type="button"
-                  className="w-full"
+                  className={`w-full ${primaryButtonClass}`}
                   onClick={handleCompleteTransaction}
                   disabled={isSubmitting || !station}
                 >
@@ -417,33 +521,37 @@ export default function CheckoutTransactionsPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>Receipt preview</CardTitle>
-                <CardDescription>Final totals are confirmed by the backend after submission.</CardDescription>
+                <CardTitle className={titleTextClass}>Receipt preview</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Final totals are confirmed by the backend after submission.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Line</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className={tableHeaderTextClass}>Line</TableHead>
+                      <TableHead className={`text-right ${tableHeaderTextClass}`}>Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell>Sub-total</TableCell>
-                      <TableCell className="text-right">{formatCurrency(amountValue || 0)}</TableCell>
+                      <TableCell className={titleTextClass}>Sub-total</TableCell>
+                      <TableCell className={`text-right ${titleTextClass}`}>
+                        {formatCurrency(amountValue || 0)}
+                      </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Reward</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className={titleTextClass}>Reward</TableCell>
+                      <TableCell className={`text-right ${titleTextClass}`}>
                         {redeemReward ? "Applied at checkout" : formatCurrency(0)}
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold">Estimated total</TableCell>
-                      <TableCell className="text-right font-semibold">
+                      <TableCell className={`font-semibold ${subtleAccentTextClass}`}>Estimated total</TableCell>
+                      <TableCell className={`text-right font-semibold ${subtleAccentTextClass}`}>
                         {formatCurrency(amountValue || 0)}
                       </TableCell>
                     </TableRow>
@@ -451,87 +559,138 @@ export default function CheckoutTransactionsPage() {
                 </Table>
               </CardContent>
               {linkedCard && (
-                <CardFooter className="justify-between text-xs text-muted-foreground">
+                <CardFooter className={`justify-between text-xs ${mutedTextClass}`}>
                   <span>Current balance</span>
-                  <span className="font-semibold text-foreground">{formatPoints(linkedCard.points_balance)}</span>
+                  <span className={`font-semibold ${subtleAccentTextClass}`}>
+                    {formatPoints(linkedCard.points_balance)}
+                  </span>
                 </CardFooter>
               )}
             </Card>
           </div>
 
-          <Card className="shadow-xs">
+          <Card className={cardClass}>
             <CardHeader>
-              <CardTitle>Recent transactions</CardTitle>
-              <CardDescription>Includes the latest activity for this business.</CardDescription>
+              <CardTitle className={titleTextClass}>Recent transactions</CardTitle>
+              <CardDescription className={mutedTextClass}>
+                Includes the latest activity for this business.
+              </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               {transactionsError && (
-                <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div
+                  className={
+                    theme === "dark"
+                      ? "mb-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+                      : "mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+                  }
+                >
                   {transactionsError}
                 </div>
               )}
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Points</TableHead>
-                    <TableHead>Station</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead className={tableHeaderTextClass}>ID</TableHead>
+                    <TableHead className={tableHeaderTextClass}>Customer</TableHead>
+                    <TableHead className={tableHeaderTextClass}>Amount</TableHead>
+                    <TableHead className={tableHeaderTextClass}>Points</TableHead>
+                    <TableHead className={tableHeaderTextClass}>Station</TableHead>
+                    <TableHead className={tableHeaderTextClass}>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactionsLoading && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={6} className={`text-center text-sm ${mutedTextClass}`}>
                         Loading transactions…
                       </TableCell>
                     </TableRow>
                   )}
                   {!transactionsLoading && transactions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={6} className={`text-center text-sm ${mutedTextClass}`}>
                         No transactions recorded yet.
                       </TableCell>
                     </TableRow>
                   )}
                   {transactions.map((tx) => {
-                    const customerName =
+                    const displayName =
                       tx.loyalty_card?.business_customer.customer.name ?? "Guest checkout"
                     return (
-                      <TableRow key={tx.id}>
-                        <TableCell className="font-mono text-xs">{tx.id.slice(0, 8)}…</TableCell>
-                        <TableCell>{customerName}</TableCell>
-                        <TableCell>{formatCurrency(tx.final_amount)}</TableCell>
-                        <TableCell>
+                      <TableRow key={tx.id} className={tableRowHoverClass}>
+                        <TableCell className={theme === "dark" ? "font-mono text-xs text-cyan-300" : "font-mono text-xs text-zinc-500"}>
+                          {tx.id.slice(0, 8)}…
+                        </TableCell>
+                        <TableCell className={titleTextClass}>{displayName}</TableCell>
+                        <TableCell className={titleTextClass}>
+                          {formatCurrency(tx.final_amount)}
+                        </TableCell>
+                        <TableCell className={theme === "dark" ? "text-cyan-200" : "text-emerald-700"}>
                           +{formatPoints(tx.points_earned)} / -{formatPoints(tx.points_redeemed)}
                         </TableCell>
-                        <TableCell>{tx.station?.name ?? "—"}</TableCell>
-                        <TableCell>{formatDateTime(tx.created_at)}</TableCell>
+                        <TableCell className={titleTextClass}>
+                          {tx.station?.name ?? "—"}
+                        </TableCell>
+                        <TableCell className={mutedTextClass}>
+                          {formatDateTime(tx.created_at)}
+                        </TableCell>
                       </TableRow>
                     )
                   })}
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="justify-between text-sm text-muted-foreground">
+            <CardFooter className={`justify-between text-sm ${mutedTextClass}`}>
               <span>Total processed</span>
-              <span className="font-semibold text-foreground">{formatCurrency(processedTotal)}</span>
+              <span className={`font-semibold ${subtleAccentTextClass}`}>
+                {formatCurrency(processedTotal)}
+              </span>
             </CardFooter>
           </Card>
         </div>
+
+        <footer className={footerClass}>
+          <div className="w-full px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="LoyaltyPass Logo"
+                className={
+                  theme === "dark"
+                    ? "size-8 object-contain"
+                    : "size-8 object-contain mix-blend-darken"
+                }
+              />
+              <span className="font-medium">LoyaltyPass Inc.</span>
+            </div>
+            <p className={theme === "dark" ? "text-sm text-white/70" : "text-sm text-black/70"}>
+              © {new Date().getFullYear()} LoyaltyPass Inc. All rights reserved.
+            </p>
+          </div>
+        </footer>
       </SidebarInset>
       {isScannerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-md rounded-lg border bg-background p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90">
+          <div className={`w-full max-w-md rounded-2xl p-4 border ${cardClass}`}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Scan loyalty QR</h2>
-              <Button size="sm" variant="outline" onClick={() => setIsScannerOpen(false)}>
+              <h2 className={`text-lg font-semibold ${titleTextClass}`}>Scan loyalty QR</h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsScannerOpen(false)}
+                className={outlineButtonClass}
+              >
                 Close
               </Button>
             </div>
-            <div className="aspect-square w-full overflow-hidden rounded-lg border">
+            <div
+              className={
+                theme === "dark"
+                  ? "aspect-square w-full overflow-hidden rounded-xl border border-cyan-500/40 shadow-[0_0_30px_rgba(56,189,248,0.6)]"
+                  : "aspect-square w-full overflow-hidden rounded-xl border border-zinc-200 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
+              }
+            >
               <QrScanner
                 onScan={(detected) => {
                   const first = Array.isArray(detected) ? detected[0] : detected
