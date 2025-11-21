@@ -1,17 +1,20 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"  // ADD THIS IMPORT
 import {
   IconCamera,
   IconChartBar,
   IconDashboard,
   IconFileAi,
   IconFileDescription,
+  IconFolder,
   IconHelp,
   IconInnerShadowTop,
   IconListDetails,
   IconSearch,
   IconSettings,
+  IconHome,
   IconUsers,
   IconSun,
   IconMoonStars,
@@ -116,19 +119,9 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
+      title: "User Home",
+      url: "/homeLoggedIn/",
+      icon: IconHome,
     },
   ],
 } satisfies {
@@ -169,6 +162,7 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter()
   const { user, loading, refresh } = useCurrentUser()
 
   const [theme, setTheme] = React.useState<ThemeMode>("light")
@@ -190,7 +184,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const handleLogout = React.useCallback(async () => {
     await logoutRequest()
     await refresh()
-  }, [refresh])
+    router.push("/login")
+  }, [refresh, router])
 
   const wrapperClass =
     theme === "dark"
