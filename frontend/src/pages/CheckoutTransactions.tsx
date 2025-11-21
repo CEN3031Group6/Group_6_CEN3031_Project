@@ -44,7 +44,6 @@ type DeviceStationSelection = {
 
 type ThemeMode = "light" | "dark"
 
-// QR Scanner (no SSR)
 const QrScanner = dynamic(
   () => import("@yudiel/react-qr-scanner").then((m) => m.Scanner),
   { ssr: false },
@@ -88,8 +87,8 @@ export default function CheckoutTransactionsPage() {
 
   const primaryButtonClass =
     theme === "dark"
-      ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded-md"
-      : "bg-black hover:bg-zinc-900 text-white rounded-md"
+      ? "bg-[#0A4CFF] hover:bg-[#0840D6] text-white border border-[#0A4CFF] rounded-md"
+      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
 
   const outlineButtonClass =
     theme === "dark"
@@ -412,7 +411,7 @@ export default function CheckoutTransactionsPage() {
                   <Button
                     onClick={() => void handleOpenScanner()}
                     disabled={!station || preparingScanner}
-                    className={primaryButtonClass}
+                    className={!station ? outlineButtonClass : primaryButtonClass}
                   >
                     {station ? (preparingScanner ? "Starting camera…" : "Scan QR code") : "Select station first"}
                   </Button>
@@ -421,7 +420,7 @@ export default function CheckoutTransactionsPage() {
                     variant={redeemReward ? "default" : "outline"}
                     onClick={handleRedeemToggle}
                     disabled={!linkedCard}
-                    className={redeemReward ? primaryButtonClass : outlineButtonClass}
+                    className={redeemReward ? outlineButtonClass : primaryButtonClass}
                   >
                     {redeemReward ? "Reward applied" : "Redeem reward"}
                   </Button>
@@ -657,7 +656,11 @@ export default function CheckoutTransactionsPage() {
               <img
                 src="/logo.png"
                 alt="LoyaltyPass Logo"
-                className="size-8 object-contain mix-blend-darken"
+                className={
+                  theme === "dark"
+                    ? "size-8 object-contain"
+                    : "size-8 object-contain mix-blend-darken"
+                }
               />
               <span className="font-medium">LoyaltyPass Inc.</span>
             </div>
@@ -724,4 +727,3 @@ function formatDateTime(value: string) {
     return value
   }
 }
-

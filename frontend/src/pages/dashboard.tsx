@@ -82,7 +82,6 @@ const FALLBACK_TOP_CUSTOMERS: TopCustomer[] = []
 type ThemeMode = "light" | "dark"
 
 export default function Page() {
-
   const [theme, setTheme] = React.useState<ThemeMode>("light")
 
   React.useEffect(() => {
@@ -108,19 +107,56 @@ export default function Page() {
       ? "bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
       : "bg-white text-black"
 
+  const cardClass =
+    theme === "dark"
+      ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
+      : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
+
+  const headerLabelClass =
+    theme === "dark"
+      ? "text-xs font-medium uppercase tracking-wide text-blue-300"
+      : "text-xs font-medium uppercase tracking-wide text-zinc-400"
+
+  const primaryButtonClass =
+    theme === "dark"
+      ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded-md"
+      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
+
+  const outlineButtonClass =
+    theme === "dark"
+      ? "border border-blue-400 text-blue-300 hover:bg-blue-900/20 rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
+
+  const defaultButtonClass =
+    theme === "dark"
+      ? "bg-zinc-800 hover:bg-zinc-700 text-white rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
+
+  const inputClass =
+    theme === "dark"
+      ? "bg-black border border-blue-400 focus-visible:ring-blue-500 text-white placeholder:text-gray-400 rounded-md"
+      : "bg-white border border-zinc-300 focus-visible:ring-zinc-500 text-black placeholder:text-zinc-400 rounded-md"
+
+  const titleTextClass = theme === "dark" ? "text-sky-50" : "text-black"
+  const mutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
+
   const footerClass =
     theme === "dark"
       ? "mt-auto w-full bg-black text-white border-t border-blue-900/50"
       : "mt-auto w-full bg-white text-black border-t border-zinc-200"
+
+  const kpiBadgeClass =
+    theme === "dark"
+      ? "bg-slate-900/80 text-blue-200 border border-blue-400"
+      : "bg-zinc-100 text-zinc-700 border border-zinc-300"
+
   const { user } = useCurrentUser()
   const { data: metrics, loading: metricsLoading } = useDashboardMetrics()
   const { data: details, loading: detailsLoading } = useDashboardDetails()
   const dashboardLoading = metricsLoading || detailsLoading
 
   const stationReadiness = details?.station_readiness ?? FALLBACK_STATIONS
-
   const revenueTrend = details?.revenue_trend
-
   const recentTransactions = details?.recent_transactions ?? FALLBACK_TRANSACTIONS
   const topCustomers = details?.top_customers ?? FALLBACK_TOP_CUSTOMERS
 
@@ -158,49 +194,46 @@ export default function Page() {
           className={`flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8 ${pageBgClass}`}
           aria-busy={dashboardLoading}
         >
-          <header className="rounded-2xl border bg-card px-6 py-5 shadow-sm">
+          <header className={`rounded-2xl px-6 py-5 ${cardClass}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Overview • Week of Nov 10</p>
-                <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-white">
+                <p className={headerLabelClass}>OVERVIEW · WEEK OF NOV 10</p>
+                <h1 className={`text-2xl font-semibold tracking-tight ${titleTextClass}`}>
                   {user?.business.name ?? "Loyalty Dashboard"}
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className={`text-sm ${mutedTextClass}`}>
                   Track cards issued, wallet installs, and station readiness in one glance.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
-                <Button variant="secondary" asChild>
+                <Button variant="outline" asChild className={outlineButtonClass}>
                   <Link href="/CheckoutTransactions">Create transaction</Link>
                 </Button>
-                <Button>Create Loyalty Card</Button>
+                <Button variant="secondary" asChild className={primaryButtonClass}>
+                  <Link href="/CreateLoyaltyCard">Create Loyalty Card</Link>
+                </Button>
               </div>
             </div>
           </header>
 
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((stat) => (
-              <Card key={stat.label} className="@container/card shadow-xs">
+              <Card key={stat.label} className={`@container/card ${cardClass}`}>
                 <CardHeader>
-                  <CardDescription>{stat.label}</CardDescription>
+                  <CardDescription className={mutedTextClass}>
+                    {stat.label}
+                  </CardDescription>
                   <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                    {metricsLoading && !metrics ? (
-                      <span className="text-muted-foreground">Loading…</span>
-                    ) : (
-                      stat.value
-                    )}
+                    {metricsLoading && !metrics ? "Loading…" : stat.value}
                   </CardTitle>
                   <CardAction>
-                    <Badge
-                      variant="outline"
-                      className="border-border text-black dark:text-white"
-                    >
+                    <Badge className={kpiBadgeClass}>
                       {stat.trend === "down" ? (
-                        <IconTrendingDown className="size-4 text-black dark:text-white" />
+                        <IconTrendingDown className="mr-1 size-4" />
                       ) : stat.trend === "flat" ? (
-                        <IconMinus className="size-4 text-black dark:text-white" />
+                        <IconMinus className="mr-1 size-4" />
                       ) : (
-                        <IconTrendingUp className="size-4 text-black dark:text-white" />
+                        <IconTrendingUp className="mr-1 size-4" />
                       )}
                       {formatDelta(stat.delta)}
                     </Badge>
@@ -223,25 +256,49 @@ export default function Page() {
                       <IconTrendingUp className="size-4" />
                     )}
                   </div>
-                  <div className="text-muted-foreground">{stat.caption}</div>
+                  <div className={mutedTextClass}>{stat.caption}</div>
                 </CardFooter>
               </Card>
             ))}
           </section>
 
           <section className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-xs">
-              <ChartAreaInteractive data={revenueTrend} />
+            <Card className={`lg:col-span-2 ${cardClass}`}>
+              <CardHeader>
+                <CardTitle className={titleTextClass}>Revenue trends</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Total revenue for the selected window.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {revenueTrend && revenueTrend.length > 0 ? (
+                  <div
+                    className={
+                      theme === "dark"
+                        ? "rounded-xl bg-black text-white"
+                        : "rounded-xl bg-white text-black"
+                    }
+                  >
+                    <ChartAreaInteractive data={revenueTrend} />
+                  </div>
+                ) : (
+                  <div className={`flex h-40 items-center justify-center text-sm ${mutedTextClass}`}>
+                    No revenue recorded yet.
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>Station readiness</CardTitle>
-                <CardDescription>Each station’s pass slot and device status.</CardDescription>
+                <CardTitle className={titleTextClass}>Station readiness</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Each station&apos;s pass slot and device status.
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
+                  <TableHeader className="bg-transparent [&_th]:text-black dark:[&_th]:text-white">
                     <TableRow>
                       <TableHead>Station</TableHead>
                       <TableHead>Status</TableHead>
@@ -252,7 +309,10 @@ export default function Page() {
                   <TableBody>
                     {stationReadiness.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                        <TableCell
+                          colSpan={4}
+                          className={`text-center text-sm ${mutedTextClass}`}
+                        >
                           No stations yet.
                         </TableCell>
                       </TableRow>
@@ -272,10 +332,10 @@ export default function Page() {
                               {station.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className={`text-sm ${mutedTextClass}`}>
                             {station.prepared_slot?.customer ?? "Empty"}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className={`text-sm ${mutedTextClass}`}>
                             {formatRelativeDate(station.updated)}
                           </TableCell>
                         </TableRow>
@@ -288,19 +348,25 @@ export default function Page() {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-xs">
+            <Card className={`lg:col-span-2 ${cardClass}`}>
               <CardHeader className="flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <CardTitle>Recent transactions</CardTitle>
-                  <CardDescription>Latest check-ins and redemptions across stations.</CardDescription>
+                  <CardTitle className={titleTextClass}>Recent transactions</CardTitle>
+                  <CardDescription className={mutedTextClass}>
+                    Latest check-ins and redemptions across stations.
+                  </CardDescription>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={outlineButtonClass}
+                >
                   View all
                 </Button>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
+                  <TableHeader className="bg-transparent [&_th]:text-black dark:[&_th]:text-white">
                     <TableRow>
                       <TableHead>Customer</TableHead>
                       <TableHead>Station</TableHead>
@@ -312,7 +378,10 @@ export default function Page() {
                   <TableBody>
                     {recentTransactions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                        <TableCell
+                          colSpan={5}
+                          className={`text-center text-sm ${mutedTextClass}`}
+                        >
                           No transactions yet.
                         </TableCell>
                       </TableRow>
@@ -327,7 +396,7 @@ export default function Page() {
                               ? `Redeemed ${txn.points_redeemed} pts`
                               : `+${txn.points_earned} pts`}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className={mutedTextClass}>
                             {formatRelativeDate(txn.created_at)}
                           </TableCell>
                         </TableRow>
@@ -338,17 +407,21 @@ export default function Page() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs">
+            <Card className={cardClass}>
               <CardHeader>
-                <CardTitle>Top customers</CardTitle>
-                <CardDescription>Based on visits and points banked.</CardDescription>
+                <CardTitle className={titleTextClass}>Top customers</CardTitle>
+                <CardDescription className={mutedTextClass}>
+                  Based on visits and points banked.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {topCustomers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center">No customers yet.</p>
+                  <p className={`text-sm text-center ${mutedTextClass}`}>
+                    No customers yet.
+                  </p>
                 ) : (
                   <Table>
-                    <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
+                    <TableHeader className="bg-transparent [&_th]:text-black dark:[&_th]:text-white">
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead>Visits</TableHead>
@@ -361,7 +434,9 @@ export default function Page() {
                           <TableCell className="font-medium">{customer.name}</TableCell>
                           <TableCell>{customer.visits}</TableCell>
                           <TableCell className="text-right">
-                            <Badge variant="outline">{formatPoints(customer.points)}</Badge>
+                            <Badge variant="outline">
+                              {formatPoints(customer.points)}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -369,7 +444,10 @@ export default function Page() {
                   </Table>
                 )}
                 <Separator />
-                <Button variant="secondary" className="w-full">
+                <Button
+                  variant="secondary"
+                  className={`w-full ${defaultButtonClass}`}
+                >
                   Export customer list
                 </Button>
               </CardContent>
@@ -383,11 +461,21 @@ export default function Page() {
               <img
                 src="/logo.png"
                 alt="LoyaltyPass Logo"
-                className="size-8 object-contain mix-blend-darken"
+                className={
+                  theme === "dark"
+                    ? "size-8 object-contain"
+                    : "size-8 object-contain mix-blend-darken"
+                }
               />
               <span className="font-medium">LoyaltyPass Inc.</span>
             </div>
-            <p className={theme === "dark" ? "text-sm text-white/70" : "text-sm text-black/70"}>
+            <p
+              className={
+                theme === "dark"
+                  ? "text-sm text-white/70"
+                  : "text-sm text-black/70"
+              }
+            >
               © {new Date().getFullYear()} LoyaltyPass Inc. All rights reserved.
             </p>
           </div>

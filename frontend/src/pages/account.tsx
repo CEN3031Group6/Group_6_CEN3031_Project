@@ -62,12 +62,17 @@ export default function AccountPage() {
   const primaryButtonClass =
     theme === "dark"
       ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded-md"
-      : "bg-black hover:bg-zinc-900 text-white rounded-md"
+      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
 
   const outlineButtonClass =
     theme === "dark"
       ? "border border-blue-400 text-blue-300 hover:bg-blue-900/20 rounded-md"
-      : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
+
+  const defaultButtonClass =
+    theme === "dark"
+      ? "bg-zinc-800 hover:bg-zinc-700 text-white rounded-md"
+      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
 
   const inputClass =
     theme === "dark"
@@ -196,7 +201,11 @@ export default function AccountPage() {
                 <p>{error}</p>
               </CardContent>
               <CardFooter>
-                <Button variant="destructive" onClick={handleRefreshProfile}>
+                <Button
+                  variant="destructive"
+                  onClick={handleRefreshProfile}
+                  className={defaultButtonClass}
+                >
                   Try again
                 </Button>
               </CardFooter>
@@ -374,11 +383,19 @@ export default function AccountPage() {
             </Card>
           </section>
 
-          <Card className="border-dashed border-primary bg-primary/5 text-center">
+          <Card
+            className={
+              theme === "dark"
+                ? "border-dashed border-blue-300 bg-black/30 text-center text-white"
+                : "border-dashed border-zinc-300 bg-zinc-50 text-center text-black"
+            }
+          >
             <CardFooter className="justify-center">
               <div className="space-y-2 py-6">
-                <p className="text-sm font-medium">Sign in to manage your account</p>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-black"}`}>
+                  Sign in to manage your account
+                </p>
+                <p className={`text-xs ${theme === "dark" ? "text-slate-300" : "text-zinc-600"}`}>
                   We couldn&apos;t find an active session. Please sign in again to view your business profile.
                 </p>
                 <Button asChild className={primaryButtonClass}>
