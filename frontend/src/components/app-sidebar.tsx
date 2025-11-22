@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"  // ADD THIS IMPORT
+import { useRouter } from "next/navigation"
 import {
   IconCamera,
   IconChartBar,
@@ -165,15 +165,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter()
   const { user, loading, refresh } = useCurrentUser()
 
-  const [theme, setTheme] = React.useState<ThemeMode>("light")
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return
+  const [theme, setTheme] = React.useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "dark"
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null
-    const initial = stored === "dark" || stored === "light" ? stored : "light"
-    setTheme(initial)
-    applyTheme(initial)
-  }, [])
+    if (stored === "dark" || stored === "light") return stored
+    return "dark"
+  })
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -248,7 +245,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 <button
                   type="button"
-                  onClick={() => setTheme("light")}
+                  onClick={() => {
+                    setTheme("light")
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem(THEME_STORAGE_KEY, "light")
+                    }
+                    applyTheme("light")
+                  }}
                   className={cn(
                     "px-2 py-0.5 rounded-full text-[11px]",
                     theme === "light"
@@ -260,7 +263,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTheme("dark")}
+                  onClick={() => {
+                    setTheme("dark")
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem(THEME_STORAGE_KEY, "dark")
+                    }
+                    applyTheme("dark")
+                  }}
                   className={cn(
                     "px-2 py-0.5 rounded-full text-[11px]",
                     theme === "dark"
