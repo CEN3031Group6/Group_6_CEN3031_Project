@@ -196,16 +196,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className={cn(props.className)}
     >
       <div className={wrapperClass}>
-        <SidebarHeader>
+        <SidebarHeader className="pb-4">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className="data-[slot=sidebar-menu-button]:!p-1.5"
-              >
-                <a href="#">
-                  <IconInnerShadowTop className="!size-5" />
-                  <span className="text-base font-semibold">Loyalty Pass</span>
+              <SidebarMenuButton asChild>
+                <a href="/dashboard" className="flex items-center gap-3 text-base font-semibold">
+                  <img
+                    src="/logo.png"
+                    alt="Loyalty Pass"
+                    className="h-8 w-8 object-contain"
+                  />
+                  <span>Loyalty Pass</span>
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
