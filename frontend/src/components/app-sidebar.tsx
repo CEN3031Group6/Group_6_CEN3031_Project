@@ -195,7 +195,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {...props}
       className={cn(props.className)}
     >
-      <div className={wrapperClass}>
+      <div suppressHydrationWarning className={wrapperClass}>
         <SidebarHeader className="pb-4">
           <SidebarMenu>
             <SidebarMenuItem>
