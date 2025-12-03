@@ -172,6 +172,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return "dark"
   })
 
+  // Ensure the first client render matches the server-rendered HTML to avoid hydration mismatch.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   React.useEffect(() => {
     if (typeof window === "undefined") return
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
@@ -184,8 +190,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     router.push("/login")
   }, [refresh, router])
 
+  // Before mount, force the display to match the server default ("dark")
+  const displayTheme = mounted ? theme : "dark"
+
   const wrapperClass =
-    theme === "dark"
+    displayTheme === "dark"
       ? "flex h-full flex-col bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
       : "flex h-full flex-col bg-white text-slate-900"
 
@@ -223,13 +232,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <div
               className={cn(
                 "flex items-center justify-between rounded-full px-2 py-1 text-[11px] font-medium",
-                theme === "dark"
+                displayTheme === "dark"
                   ? "bg-slate-900/80 text-slate-100 border border-slate-700"
                   : "bg-slate-100 text-slate-800 border border-slate-200",
               )}
             >
               <span className="flex items-center gap-1">
-                {theme === "dark" ? (
+                {displayTheme === "dark" ? (
                   <IconMoonStars className="h-3.5 w-3.5" />
                 ) : (
                   <IconSun className="h-3.5 w-3.5" />
@@ -239,7 +248,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <div
                 className={cn(
                   "inline-flex rounded-full border p-0.5",
-                  theme === "dark"
+                  displayTheme === "dark"
                     ? "border-slate-700 bg-slate-900"
                     : "border-slate-200 bg-white",
                 )}
@@ -255,7 +264,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   }}
                   className={cn(
                     "px-2 py-0.5 rounded-full text-[11px]",
-                    theme === "light"
+                    displayTheme === "light"
                       ? "bg-slate-900 text-white"
                       : "text-slate-600",
                   )}
@@ -273,7 +282,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   }}
                   className={cn(
                     "px-2 py-0.5 rounded-full text-[11px]",
-                    theme === "dark"
+                    displayTheme === "dark"
                       ? "bg-slate-100 text-slate-900"
                       : "text-slate-600",
                   )}
