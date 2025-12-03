@@ -41,7 +41,7 @@ from .passkit import (
 
 
 class BusinessViewSet(viewsets.ModelViewSet):
-    queryset = Business.objects.all()
+    queryset = Business.objects.all().order_by("name")
     serializer_class = BusinessSerializer
 
     def get_queryset(self):
@@ -49,12 +49,12 @@ class BusinessViewSet(viewsets.ModelViewSet):
         return Business.objects.filter(pk = biz.id)
 
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
+    queryset = Customer.objects.all().order_by("name")
     serializer_class = CustomerSerializer
     permission_classes = [IsAdminUser]
 
 class BusinessCustomerViewSet(viewsets.ModelViewSet):
-    queryset = BusinessCustomer.objects.all()
+    queryset = BusinessCustomer.objects.all().order_by("customer__name")
     serializer_class = BusinessCustomerSerializer
 
     def get_queryset(self):
@@ -72,7 +72,7 @@ class BusinessCustomerViewSet(viewsets.ModelViewSet):
             customer.delete()
 
 class LoyaltyCardViewSet(viewsets.ModelViewSet):
-    queryset = LoyaltyCard.objects.all()
+    queryset = LoyaltyCard.objects.all().order_by("-created_at")
     serializer_class = LoyaltyCardSerializer
 
     def get_queryset(self):
@@ -89,7 +89,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 class StationViewSet(viewsets.ModelViewSet):
-    queryset = Station.objects.all()
+    queryset = Station.objects.all().order_by("name")
     serializer_class = StationSerializer
 
     def get_queryset(self):
@@ -101,7 +101,7 @@ class StationViewSet(viewsets.ModelViewSet):
         serializer.save(business = biz)
 
 class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.all()
+    queryset = Transaction.objects.all().order_by("-created_at")
     serializer_class = TransactionSerializer
 
     def get_queryset(self):
@@ -200,6 +200,9 @@ class LoyaltyCardIssueView(APIView):
             reverse("station-prepared-pass", args=[station.pk])
         )
         prepared_url = f"{prepared_url}?token={station.api_token}"
+        public_pass_url = request.build_absolute_uri(
+            reverse("station-public-pass", args=[station.public_slug])
+        )
 
         loyalty_card_data = LoyaltyCardSerializer(loyalty_card, context={"request": request}).data
         loyalty_card_data["qr_payload"] = str(loyalty_card.token)
@@ -212,6 +215,7 @@ class LoyaltyCardIssueView(APIView):
                 "loyalty_card": loyalty_card_data,
                 "station_id": str(station.pk),
                 "prepared_pass_url": prepared_url,
+                "public_pass_url": public_pass_url,
                 "wallet": {
                     "apple": {"download_url": prepared_url + "&platform=apple"},
                     "google": {"download_url": prepared_url + "&platform=google"},
@@ -219,6 +223,37 @@ class LoyaltyCardIssueView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+def serve_station_prepared_pass(request, station, default_clear=True):
+    card = station.prepared_loyalty_card
+    if not card:
+        return Response({"detail": "No pass prepared."}, status=status.HTTP_404_NOT_FOUND)
+
+    platform = request.query_params.get("platform", "json").lower()
+    clear_param = request.query_params.get("clear")
+    clear = default_clear
+    if clear_param is not None:
+        clear = clear_param.lower() != "false"
+
+    if platform == "apple":
+        pkpass_bytes = build_pkpass(card)
+        response = HttpResponse(pkpass_bytes, content_type="application/vnd.apple.pkpass")
+        response["Content-Disposition"] = f'attachment; filename="{card.token}.pkpass"'
+    else:
+        payload = {
+            "loyalty_card_token": str(card.token),
+            "qr_payload": str(card.token),
+            "apple_wallet_available": True,
+        }
+        response = Response(payload)
+
+    if clear:
+        station.prepared_loyalty_card = None
+        station.prepared_at = None
+        station.save(update_fields=["prepared_loyalty_card", "prepared_at"])
+
+    return response
 
 
 class StationPreparedPassView(APIView):
@@ -231,31 +266,16 @@ class StationPreparedPassView(APIView):
         if token != station.api_token:
             raise PermissionDenied("Invalid station token.")
 
-        card = station.prepared_loyalty_card
-        if not card:
-            return Response({"detail": "No pass prepared."}, status=status.HTTP_404_NOT_FOUND)
+        return serve_station_prepared_pass(request, station, default_clear=True)
 
-        platform = request.query_params.get("platform", "json").lower()
-        clear = request.query_params.get("clear", "true").lower() != "false"
 
-        if platform == "apple":
-            pkpass_bytes = build_pkpass(card)
-            response = HttpResponse(pkpass_bytes, content_type="application/vnd.apple.pkpass")
-            response["Content-Disposition"] = f'attachment; filename="{card.token}.pkpass"'
-        else:
-            payload = {
-                "loyalty_card_token": str(card.token),
-                "qr_payload": str(card.token),
-                "apple_wallet_available": True,
-            }
-            response = Response(payload)
+class StationPublicPassView(APIView):
+    authentication_classes = []
+    permission_classes = []
 
-        if clear:
-            station.prepared_loyalty_card = None
-            station.prepared_at = None
-            station.save(update_fields=["prepared_loyalty_card", "prepared_at"])
-
-        return response
+    def get(self, request, slug):
+        station = get_object_or_404(Station, public_slug=slug)
+        return serve_station_prepared_pass(request, station, default_clear=False)
 
 
 class LoyaltyCardQRView(APIView):

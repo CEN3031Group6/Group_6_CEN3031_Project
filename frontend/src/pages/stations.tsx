@@ -21,13 +21,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -44,6 +38,7 @@ type ApiStation = {
   id: string
   name: string
   api_token: string
+  public_slug: string
   prepared_loyalty_card: string | null
   prepared_at?: string | null
   created_at?: string | null
@@ -54,71 +49,10 @@ type DeviceStationSelection = {
   id: string
   name: string
   token: string
+  slug?: string
 }
 
-type ThemeMode = "light" | "dark"
-
 export default function StationsPage() {
-  const [theme, setTheme] = React.useState<ThemeMode>("light")
-
-  React.useEffect(() => {
-    if (typeof document === "undefined") return
-
-    const root = document.documentElement
-    const getThemeFromDom = (): ThemeMode =>
-      root.dataset.theme === "dark" ? "dark" : "light"
-
-    setTheme(getThemeFromDom())
-
-    const observer = new MutationObserver(() => {
-      setTheme(getThemeFromDom())
-    })
-
-    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
-
-    return () => observer.disconnect()
-  }, [])
-
-  const pageBgClass =
-    theme === "dark"
-      ? "bg-gradient-to-b from-[#010B1A] via-[#000814] to-black text-white"
-      : "bg-white text-black"
-
-  const footerClass =
-    theme === "dark"
-      ? "mt-auto w-full bg-black text-white border-t border-blue-900/50"
-      : "mt-auto w-full bg-white text-black border-t border-zinc-200"
-
-  const cardBaseClass =
-    theme === "dark"
-      ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
-      : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
-
-  const inputClass =
-    theme === "dark"
-      ? "bg-black border border-blue-400 focus-visible:ring-blue-500 text-white placeholder:text-gray-400 rounded-md"
-      : "bg-white border border-zinc-300 text-black placeholder:text-zinc-400 focus-visible:ring-zinc-500 rounded-md"
-
-  const tableCellTextClass = theme === "dark" ? "text-white" : "text-black"
-  const tableMutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
-
-  const primaryButtonClass =
-    theme === "dark"
-      ? "bg-[#0A4CFF] hover:bg-[#0840D6] text-white border border-[#0A4CFF] rounded-md"
-      : "bg-white hover:bg-zinc-100 text-black border border-zinc-300 rounded-md"
-
-  const outlineButtonClass =
-    theme === "dark"
-      ? "border border-blue-400 text-blue-300 hover:bg-blue-900/20 rounded-md"
-      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
-
-  const defaultButtonClass =
-    theme === "dark"
-      ? "bg-zinc-800 hover:bg-zinc-700 text-white rounded-md"
-      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100 rounded-md"
-
-  const mutedTextClass = theme === "dark" ? "text-slate-300" : "text-zinc-500"
-
   const [stations, setStations] = React.useState<ApiStation[]>([])
   const [stationName, setStationName] = React.useState("")
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -127,8 +61,7 @@ export default function StationsPage() {
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
   const [clearingId, setClearingId] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
-  const [activeStation, setActiveStation] =
-    React.useState<DeviceStationSelection | null>(null)
+  const [activeStation, setActiveStation] = React.useState<DeviceStationSelection | null>(null)
 
   React.useEffect(() => {
     void fetchStations()
@@ -160,23 +93,17 @@ export default function StationsPage() {
         throw new Error("Unable to load stations.")
       }
       const payload = await response.json()
-      const results: ApiStation[] = Array.isArray(payload)
-        ? payload
-        : payload.results ?? []
+      const results = (Array.isArray(payload) ? payload : payload.results ?? []) as ApiStation[]
       setStations(results)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to reach the backend.",
-      )
+      setError(err instanceof Error ? err.message : "Failed to reach the backend.")
       setStations([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const preparedCount = stations.filter((s) =>
-    Boolean(s.prepared_loyalty_card),
-  ).length
+  const preparedCount = stations.filter((station) => Boolean(station.prepared_loyalty_card)).length
   const totalStations = stations.length
 
   async function handleCreateStation(event: React.FormEvent<HTMLFormElement>) {
@@ -241,27 +168,21 @@ export default function StationsPage() {
       }
       await fetchStations()
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to clear prepared card.",
-      )
+      setError(err instanceof Error ? err.message : "Failed to clear prepared card.")
     } finally {
       setClearingId(null)
     }
   }
 
   async function handleDeleteStation(station: ApiStation) {
-    if (!window.confirm(`Delete ${station.name}? This cannot be undone.`))
-      return
+    if (!window.confirm(`Delete ${station.name}? This cannot be undone.`)) return
     setDeletingId(station.id)
     setError(null)
     try {
-      const response = await fetch(
-        `${API_BASE}/api/stations/${station.id}/`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      )
+      const response = await fetch(`${API_BASE}/api/stations/${station.id}/`, {
+        method: "DELETE",
+        credentials: "include",
+      })
       if (response.status === 401 || response.status === 403) {
         throw new Error("Please sign in to delete stations.")
       }
@@ -271,9 +192,7 @@ export default function StationsPage() {
       }
       await fetchStations()
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to delete station.",
-      )
+      setError(err instanceof Error ? err.message : "Failed to delete station.")
     } finally {
       setDeletingId(null)
     }
@@ -284,12 +203,10 @@ export default function StationsPage() {
       id: station.id,
       name: station.name,
       token: station.api_token,
+      slug: station.public_slug,
     }
     setActiveStation(selection)
-    window.localStorage.setItem(
-      "loyaltypass.activeStation",
-      JSON.stringify(selection),
-    )
+    window.localStorage.setItem("loyaltypass.activeStation", JSON.stringify(selection))
   }
 
   function clearRememberedStation() {
@@ -308,119 +225,88 @@ export default function StationsPage() {
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <StationsHeader theme={theme} />
-        <div
-          className={cn(
-            "flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8",
-            pageBgClass,
-          )}
-        >
-          <StatsRow total={totalStations} prepared={preparedCount} theme={theme} />
-
+        <StationsHeader />
+        <div className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8">
+          <StatsRow total={totalStations} prepared={preparedCount} />
           {error && (
-            <div
-              className={
-                theme === "dark"
-                  ? "rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
-                  : "rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
-              }
-            >
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
 
-          <Card className={cardBaseClass}>
+          <Card className="border-primary/20">
             <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle>Device Station</CardTitle>
-                <CardDescription className={mutedTextClass}>
-                  Select which station this device represents. All loyalty card
-                  issuance and checkout actions will use its token
-                  automatically.
+                <CardDescription>
+                  Select which station this device represents. All loyalty card issuance and checkout
+                  actions will use its token automatically.
                 </CardDescription>
               </div>
               {activeStation ? (
                 <div className="flex flex-col items-start gap-1 text-sm lg:items-end">
-                  <span className="font-medium text-blue-600 dark:text-blue-300">
-                    {activeStation.name}
-                  </span>
-                  <code className="rounded bg-zinc-100 text-zinc-800 dark:bg-slate-900 dark:text-slate-100 px-2 py-1 text-xs">
-                    {activeStation.token}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearRememberedStation}
-                    className={outlineButtonClass}
-                  >
+                  <span className="font-medium text-primary">{activeStation.name}</span>
+                  <code className="rounded bg-muted px-2 py-1 text-xs">{activeStation.token}</code>
+                  <Button variant="ghost" size="sm" onClick={clearRememberedStation}>
                     Forget this device
                   </Button>
                 </div>
               ) : (
-                <span className={cn("text-sm", mutedTextClass)}>
+                <span className="text-sm text-muted-foreground">
                   No station selected for this device yet.
                 </span>
               )}
             </CardHeader>
           </Card>
 
-          <Card className={cardBaseClass}>
+          <Card>
             <CardHeader>
               <CardTitle>Create a Station</CardTitle>
-              <CardDescription className={mutedTextClass}>
-                Each physical device needs a Station token. Generate it once and
-                store it on the device securely.
+              <CardDescription>
+                Each physical device needs a Station token. Generate it once and store it on the
+                device securely.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form
-                className="flex flex-col gap-3 md:flex-row"
-                onSubmit={handleCreateStation}
-              >
+              <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleCreateStation}>
                 <Input
                   value={stationName}
                   onChange={(event) => setStationName(event.target.value)}
                   placeholder="e.g. Drive Thru Tablet"
                   aria-label="Station name"
-                  className={inputClass}
+                  className="text-foreground placeholder:text-muted-foreground"
                 />
-                <Button
-                  className={cn("md:min-w-[160px]", primaryButtonClass)}
-                  disabled={!stationName.trim() || isSubmitting}
-                >
+                <Button className="md:min-w-[160px]" disabled={!stationName.trim() || isSubmitting}>
                   {isSubmitting ? "Creating…" : "Create Station"}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          <Card className={cardBaseClass}>
+          <Card>
             <CardHeader>
               <CardTitle>Registered Stations</CardTitle>
-              <CardDescription className={mutedTextClass}>
-                Copy the Station token to configure a new device or clear the
-                prepared slot if a pass was already handed out.
+              <CardDescription>
+                Copy the Station token to configure a new device or clear the prepared slot if a pass
+                was already handed out.
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-transparent [&_th]:text-black dark:[&_th]:text-white">
+                <TableHeader className="[&_th]:text-black dark:[&_th]:text-white">
                   <TableRow>
-                    <TableHead>Station</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Prepared Slot</TableHead>
-                    <TableHead>Station Token</TableHead>
-                    <TableHead>Last Activity</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="min-w-[200px] text-foreground">Station</TableHead>
+                    <TableHead className="text-foreground">Status</TableHead>
+                    <TableHead className="min-w-[200px] text-foreground">Prepared Slot</TableHead>
+                    <TableHead className="min-w-[260px] text-foreground">Station Token</TableHead>
+                    <TableHead className="min-w-[160px] text-foreground">Last Activity</TableHead>
+                    <TableHead className="text-right text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className={cn("text-center text-sm", tableMutedTextClass)}
-                      >
+                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
                         <div className="flex items-center justify-center gap-2">
                           <IconLoader2 className="size-4 animate-spin" />
                           Loading stations…
@@ -430,107 +316,74 @@ export default function StationsPage() {
                   )}
                   {!isLoading && stations.length === 0 && (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className={cn("text-center text-sm", tableMutedTextClass)}
-                      >
+                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
                         No stations yet. Create one above to get started.
                       </TableCell>
                     </TableRow>
                   )}
                   {stations.map((station) => (
                     <TableRow key={station.id}>
-                      <TableCell className={tableCellTextClass}>
-                        {station.name}
-                      </TableCell>
+                      <TableCell className="font-medium">{station.name}</TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            station.prepared_loyalty_card
-                              ? "secondary"
-                              : "outline"
-                          }
+                          variant={station.prepared_loyalty_card ? "secondary" : "outline"}
                           className={cn(
                             station.prepared_loyalty_card
-                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
-                              : "text-zinc-600 dark:text-slate-300 border-zinc-300 dark:border-slate-600",
+                              ? "bg-primary/10 text-primary dark:bg-primary/20"
+                              : "text-muted-foreground",
                           )}
                         >
                           {station.prepared_loyalty_card ? "Card Ready" : "Idle"}
                         </Badge>
                       </TableCell>
-                      <TableCell className={tableCellTextClass}>
+                      <TableCell>
                         {station.prepared_loyalty_card ? (
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              Token {station.prepared_loyalty_card}
+                              Token {truncateToken(station.prepared_loyalty_card)}
                             </span>
-                            <span className={cn("text-xs", tableMutedTextClass)}>
-                              Waiting on NFC tap
-                            </span>
+                            <span className="text-xs text-muted-foreground">Waiting on NFC tap</span>
                           </div>
                         ) : (
-                          <span className={tableMutedTextClass}>Empty</span>
+                          <span className="text-muted-foreground">Empty</span>
                         )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code
-                            className={cn(
-                              "rounded px-2 py-1 text-xs",
-                              theme === "dark"
-                                ? "bg-slate-900 text-slate-100 border border-slate-700"
-                                : "bg-zinc-100 text-zinc-800 border border-zinc-200",
-                            )}
-                          >
+                          <code className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
                             {station.api_token}
                           </code>
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() =>
-                              handleCopyToken(station.api_token, station.id)
-                            }
+                            onClick={() => handleCopyToken(station.api_token, station.id)}
                             aria-label="Copy station token"
                           >
                             {copiedId === station.id ? (
-                              <IconCheck className="size-4 text-blue-600 dark:text-blue-400" />
+                              <IconCheck className="size-4 text-primary" />
                             ) : (
                               <IconCopy className="size-4" />
                             )}
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell
-                        className={cn("font-medium", tableCellTextClass)}
-                      >
-                        {station.updated_at || station.prepared_at || "—"}
+                      <TableCell className="font-medium">
+                        {formatDateTime(station.updated_at || station.prepared_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
-                            variant={
-                              activeStation?.id === station.id
-                                ? "default"
-                                : "secondary"
-                            }
+                            variant={activeStation?.id === station.id ? "default" : "secondary"}
                             size="sm"
                             onClick={() => rememberStation(station)}
-                            className={primaryButtonClass}
                           >
-                            {activeStation?.id === station.id
-                              ? "Using on this device"
-                              : "Use here"}
+                            {activeStation?.id === station.id ? "Using on this device" : "Use here"}
                           </Button>
                           <Button
                             variant="default"
                             size="sm"
                             onClick={() => handleClearPrepared(station)}
-                            disabled={
-                              !station.prepared_loyalty_card ||
-                              clearingId === station.id
-                            }
-                            className={outlineButtonClass}
+                            disabled={!station.prepared_loyalty_card || clearingId === station.id}
                           >
                             {clearingId === station.id ? "Clearing…" : "Clear Slot"}
                           </Button>
@@ -539,7 +392,6 @@ export default function StationsPage() {
                             size="icon"
                             onClick={() => handleDeleteStation(station)}
                             disabled={deletingId === station.id}
-                            className={defaultButtonClass}
                           >
                             <IconTrash className="size-4 text-destructive" />
                           </Button>
@@ -552,55 +404,14 @@ export default function StationsPage() {
             </CardContent>
           </Card>
         </div>
-
-        <footer className={footerClass}>
-          <div className="w-full px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img
-                src="/logo.png"
-                alt="LoyaltyPass Logo"
-                className={
-                  theme === "dark"
-                    ? "size-8 object-contain"
-                    : "size-8 object-contain mix-blend-darken"
-                }
-              />
-              <span className="font-medium">LoyaltyPass Inc.</span>
-            </div>
-            <p
-              className={
-                theme === "dark"
-                  ? "text-sm text-white/70"
-                  : "text-sm text-black/70"
-              }
-            >
-              © {new Date().getFullYear()} LoyaltyPass Inc. All rights reserved.
-            </p>
-          </div>
-        </footer>
       </SidebarInset>
     </SidebarProvider>
   )
 }
 
-function StationsHeader({ theme }: { theme: ThemeMode }) {
-  const headerClass =
-    theme === "dark"
-      ? "bg-black text-white border-b border-blue-900/50"
-      : "bg-white text-black border-b border-zinc-200"
-
-  const deployButtonClass =
-    theme === "dark"
-      ? "border border-blue-500 !text-white hover:bg-blue-500/10"
-      : "bg-white text-black border border-zinc-300 hover:bg-zinc-100"
-
+function StationsHeader() {
   return (
-    <header
-      className={cn(
-        "flex h-(--header-height) shrink-0 items-center px-4 lg:px-6",
-        headerClass,
-      )}
-    >
+    <header className="flex h-(--header-height) shrink-0 items-center border-b px-4 lg:px-6">
       <div className="flex w-full items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -610,19 +421,12 @@ function StationsHeader({ theme }: { theme: ThemeMode }) {
         <div className="flex flex-1 items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Stations</h1>
-            <p
-              className={
-                theme === "dark"
-                  ? "text-sm text-slate-300"
-                  : "text-sm text-zinc-600"
-              }
-            >
-              Manage device tokens and prepared passes for each checkout
-              station.
+            <p className="text-sm text-muted-foreground">
+              Manage device tokens and prepared passes for each checkout station.
             </p>
           </div>
           <div className="hidden items-center gap-2 md:flex">
-            <Button variant="outline" className={deployButtonClass}>
+            <Button variant="outline">
               <IconShieldCheck className="mr-2 size-4" />
               Deployment Guide
             </Button>
@@ -633,37 +437,26 @@ function StationsHeader({ theme }: { theme: ThemeMode }) {
   )
 }
 
-function StatsRow({
-  total,
-  prepared,
-  theme,
-}: {
-  total: number
-  prepared: number
-  theme: ThemeMode
-}) {
+function StatsRow({ total, prepared }: { total: number; prepared: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <MetricCard
-        icon={<IconDeviceImac className="size-5" />}
+        icon={<IconDeviceImac className="size-5 text-primary" />}
         label="Total Stations"
         value={total}
         description="Devices linked to this business"
-        theme={theme}
       />
       <MetricCard
-        icon={<IconPlugConnected className="size-5" />}
+        icon={<IconPlugConnected className="size-5 text-primary" />}
         label="Prepared Slots"
         value={prepared}
         description="Stations ready to hand out passes"
-        theme={theme}
       />
       <MetricCard
-        icon={<IconBroadcast className="size-5" />}
+        icon={<IconBroadcast className="size-5 text-primary" />}
         label="Idle"
         value={Math.max(total - prepared, 0)}
         description="Stations awaiting the next customer"
-        theme={theme}
       />
     </div>
   )
@@ -674,38 +467,33 @@ function MetricCard({
   label,
   value,
   description,
-  theme,
 }: {
   icon: React.ReactNode
   label: string
   value: number
   description: string
-  theme: ThemeMode
 }) {
-  const cardIconWrapper =
-    theme === "dark"
-      ? "rounded-full bg-slate-900 p-3 text-blue-300"
-      : "rounded-full bg-blue-50 p-3 text-blue-600"
-
-  const mutedText =
-    theme === "dark" ? "text-slate-300" : "text-zinc-600"
-
   return (
-    <Card
-      className={
-        theme === "dark"
-          ? "bg-black border border-blue-300 rounded-lg text-white shadow-lg shadow-black/30"
-          : "bg-white border border-zinc-200 rounded-2xl text-black shadow-sm"
-      }
-    >
+    <Card>
       <CardContent className="flex items-center gap-4 p-6">
-        <div className={cardIconWrapper}>{icon}</div>
+        <div className="rounded-full bg-primary/10 p-3 text-primary">{icon}</div>
         <div className="flex flex-col">
-          <span className={cn("text-sm", mutedText)}>{label}</span>
+          <span className="text-sm text-muted-foreground">{label}</span>
           <span className="text-3xl font-semibold">{value}</span>
-          <span className={cn("text-xs", mutedText)}>{description}</span>
+          <span className="text-xs text-muted-foreground">{description}</span>
         </div>
       </CardContent>
     </Card>
   )
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "—"
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function truncateToken(token: string) {
+  if (token.length <= 8) return token
+  return `${token.slice(0, 4)}…${token.slice(-4)}`
 }

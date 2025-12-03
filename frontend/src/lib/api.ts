@@ -49,6 +49,27 @@ export type TransactionRecord = {
   loyalty_card?: LoyaltyCardDetails | null
 }
 
+export type BusinessCustomerRecord = {
+  id: string
+  customer: CustomerSummary
+}
+
+export type LoyaltyCardIssueResult = {
+  customer: CustomerSummary
+  business_customer_id: string
+  loyalty_card: {
+    token: string
+    points_balance: number
+    qr_payload?: string
+    authentication_token?: string | null
+  }
+  prepared_pass_url: string
+  wallet?: {
+    apple?: { download_url: string }
+    google?: { download_url: string }
+  }
+}
+
 export type DashboardMetrics = {
   active_loyalty_cards: number
   active_loyalty_cards_prev: number
@@ -190,6 +211,60 @@ export async function fetchDashboardDetails(): Promise<DashboardDetails> {
     throw new Error(data?.detail ?? "Unable to load dashboard data.")
   }
   return data as DashboardDetails
+}
+
+export async function fetchBusinessCustomers(): Promise<BusinessCustomerRecord[]> {
+  const response = await fetch(`${API_BASE}/api/businesscustomers/`, {
+    credentials: "include",
+  })
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("Please sign in to view loyalty customers.")
+  }
+  const data = await safeJson(response)
+  if (!response.ok) {
+    throw new Error(data?.detail ?? "Unable to load loyalty customers.")
+  }
+  const list = Array.isArray(data) ? data : data?.results
+  if (!Array.isArray(list)) {
+    return []
+  }
+  return list.map((item: any) => {
+    const fallbackId = item.customer?.id ?? item.id ?? `${Date.now()}-${Math.random()}`
+    return {
+      id: String(item.id ?? fallbackId),
+      customer: {
+        id: String(item.customer?.id ?? fallbackId),
+        name: item.customer?.name ?? "Unknown customer",
+        phone_number: item.customer?.phone_number ?? null,
+      },
+    }
+  })
+}
+
+export async function issueLoyaltyCard(
+  payload: { customer_name: string; phone_number: string },
+  stationToken: string,
+): Promise<LoyaltyCardIssueResult> {
+  if (!stationToken) {
+    throw new Error("Station token is required before issuing a loyalty card.")
+  }
+  const response = await fetch(`${API_BASE}/api/loyaltycards/issue/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Station-Token": stationToken,
+    },
+    body: JSON.stringify(payload),
+  })
+  const data = await safeJson(response)
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("Please sign in and ensure your station token is valid.")
+  }
+  if (!response.ok) {
+    throw new Error(data?.detail ?? "Unable to issue loyalty card.")
+  }
+  return data as LoyaltyCardIssueResult
 }
 
 function normalizeNumber(value: unknown): number {

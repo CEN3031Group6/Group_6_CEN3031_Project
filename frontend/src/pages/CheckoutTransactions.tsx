@@ -40,6 +40,7 @@ type DeviceStationSelection = {
   id: string
   name: string
   token: string
+  slug?: string
 }
 
 type ThemeMode = "light" | "dark"

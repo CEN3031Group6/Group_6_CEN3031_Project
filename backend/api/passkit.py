@@ -7,12 +7,15 @@ import subprocess
 import tempfile
 import zipfile
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
+from shutil import copyfile
 
 from django.conf import settings
 from django.utils import timezone
 
 from .models import LoyaltyCard, PassRegistration
+from .push import PassRegistrationPayload, send_wallet_pass_update
 
 
 logger = logging.getLogger(__name__)
@@ -40,20 +43,48 @@ def _write_placeholder_png(path: Path):
         image_file.write(PLACEHOLDER_ICON)
 
 
+def _resolve_asset_dir() -> Path:
+    configured = getattr(settings, "APPLE_PASS_ASSET_DIR", "")
+    path = Path(configured) if configured else Path(settings.BASE_DIR) / "certs"
+    if not path.is_absolute():
+        path = Path(settings.BASE_DIR) / path
+    return path
+
+
 def _write_assets(tmpdir: Path):
-    assets = {
-        "icon.png": tmpdir / "icon.png",
-        "icon@2x.png": tmpdir / "icon@2x.png",
-        "logo.png": tmpdir / "logo.png",
-        "logo@2x.png": tmpdir / "logo@2x.png",
-    }
-    for asset_path in assets.values():
-        _write_placeholder_png(asset_path)
+    asset_dir = _resolve_asset_dir()
+    assets = {}
+
+    def copy_with_fallback(dest: str, *candidates: str) -> Path:
+        dest_path = tmpdir / dest
+        copied = False
+        for candidate in candidates:
+            src_path = asset_dir / candidate
+            if src_path.exists():
+                try:
+                    copyfile(src_path, dest_path)
+                    copied = True
+                    break
+                except OSError:
+                    copied = False
+        if not copied:
+            _write_placeholder_png(dest_path)
+        return dest_path
+
+    assets["icon.png"] = copy_with_fallback("icon.png", "icon.png", "icon@2x.png")
+    assets["icon@2x.png"] = copy_with_fallback("icon@2x.png", "icon@2x.png", "icon.png")
+    assets["logo.png"] = copy_with_fallback("logo.png", "logo.png", "logo@2x.png")
+    assets["logo@2x.png"] = copy_with_fallback("logo@2x.png", "logo@2x.png", "logo.png")
+    assets["strip.png"] = copy_with_fallback("strip.png", "strip.png", "strip@2x.png")
+    assets["strip@2x.png"] = copy_with_fallback("strip@2x.png", "strip@2x.png", "strip.png")
+
     return assets
 
 
 def _build_pass_json(card: LoyaltyCard) -> dict:
     business = card.business_customer.business
+    earn_rate = business.reward_rate.quantize(Decimal("1"))
+    redeem_percent = (business.redemption_rate * 100).quantize(Decimal("1"))
     return {
         "formatVersion": 1,
         "passTypeIdentifier": settings.APPLE_PASS_TYPE_IDENTIFIER,
@@ -91,12 +122,12 @@ def _build_pass_json(card: LoyaltyCard) -> dict:
                 {
                     "key": "reward_rate",
                     "label": "Earn Rate",
-                    "value": f"{business.reward_rate} pts / 1.00",
+                    "value": f"{earn_rate} pt per $1",
                 },
                 {
                     "key": "redeem",
                     "label": "Redeem",
-                    "value": f"{business.redemption_points} pts → {business.redemption_rate * 100}% off",
+                    "value": f"{business.redemption_points} pts → {redeem_percent}% off",
                 },
             ],
             "backFields": [
@@ -318,6 +349,26 @@ def list_serial_numbers(device_identifier: str, pass_type_identifier: str, passe
 
 
 def notify_loyalty_card_updated(card: LoyaltyCard):
-    # Hook for future APNs push integration
-    # For now, simply touch registrations so they appear in list_serial_numbers
-    PassRegistration.objects.filter(loyalty_card=card).update(updated_at=timezone.now())
+    registrations = list(
+        PassRegistration.objects.filter(loyalty_card=card).only("pk", "push_token")
+    )
+    if not registrations:
+        return
+
+    now = timezone.now()
+    PassRegistration.objects.filter(pk__in=[registration.pk for registration in registrations]).update(
+        updated_at=now
+    )
+
+    payloads = [
+        PassRegistrationPayload(push_token=registration.push_token, serial_number=str(card.token))
+        for registration in registrations
+        if registration.push_token
+    ]
+    if not payloads:
+        return
+
+    try:
+        send_wallet_pass_update(payloads)
+    except Exception:  # pragma: no cover - best effort network call
+        logger.exception("Failed to send wallet update for card %s", card.pk)
