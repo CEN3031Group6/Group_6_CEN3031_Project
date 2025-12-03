@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import models
+from django.utils.text import slugify
 import secrets
 import uuid
 
@@ -168,11 +169,6 @@ class Station(models.Model):
         editable=False
     )
 
-    def save(self, *args, **kwargs):
-        if not self.api_token:
-            self.api_token = secrets.token_hex(32)
-        super().save(*args, **kwargs)
-
     business = models.ForeignKey(
         Business,
         on_delete = models.CASCADE
@@ -180,6 +176,12 @@ class Station(models.Model):
 
     name = models.CharField(
         max_length = 50
+    )
+
+    public_slug = models.SlugField(
+        max_length = 80,
+        unique = True,
+        blank = True
     )
 
     prepared_loyalty_card = models.ForeignKey(
@@ -197,6 +199,22 @@ class Station(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.business.name})"
+
+    def save(self, *args, **kwargs):
+        if not self.api_token:
+            self.api_token = secrets.token_hex(32)
+        if not self.public_slug:
+            self.public_slug = self._generate_unique_slug()
+        super().save(*args, **kwargs)
+
+    def _generate_unique_slug(self):
+        base_slug = slugify(self.name) or uuid.uuid4().hex[:8]
+        slug = base_slug
+        counter = 1
+        while Station.objects.filter(public_slug=slug).exclude(pk=self.pk).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        return slug
 
 class Transaction(models.Model):
 

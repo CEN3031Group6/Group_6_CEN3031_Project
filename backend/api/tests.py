@@ -1,4 +1,5 @@
 import uuid
+from unittest import mock
 from decimal import Decimal
 
 from django.conf import settings
@@ -8,7 +9,7 @@ from rest_framework.test import APITestCase
 
 from accounts.models import BusinessUser
 from api.models import Business, BusinessCustomer, Customer, LoyaltyCard, Station, PassRegistration, Transaction
-from api.passkit import ensure_card_auth_token
+from api.passkit import ensure_card_auth_token, notify_loyalty_card_updated
 
 
 def create_business(name="Primary Biz"):
@@ -491,3 +492,31 @@ class DashboardDetailTests(AuthenticatedBusinessAPITestCase):
         self.assertIn("revenue_trend", response.data)
         self.assertIn("recent_transactions", response.data)
         self.assertIn("top_customers", response.data)
+
+
+class PassNotificationTests(APITestCase):
+    def setUp(self):
+        super().setUp()
+        self.business = create_business("Notify Biz")
+        customer = Customer.objects.create(name="Push Recipient", phone_number=unique_phone())
+        bc = BusinessCustomer.objects.create(business=self.business, customer=customer)
+        self.card = LoyaltyCard.objects.create(business_customer=bc, points_balance=10)
+        self.registration = PassRegistration.objects.create(
+            loyalty_card=self.card,
+            device_library_identifier="device-push-1",
+            pass_type_identifier=settings.APPLE_PASS_TYPE_IDENTIFIER,
+            push_token="push-token-xyz",
+        )
+
+    def test_notify_updates_timestamp_and_triggers_push(self):
+        original_updated = self.registration.updated_at
+        with mock.patch("api.passkit.send_wallet_pass_update") as push_mock:
+            notify_loyalty_card_updated(self.card)
+
+        self.assertTrue(push_mock.called)
+        args, _ = push_mock.call_args
+        self.assertEqual(len(args[0]), 1)
+        self.assertEqual(args[0][0].serial_number, str(self.card.token))
+
+        self.registration.refresh_from_db()
+        self.assertGreater(self.registration.updated_at, original_updated)

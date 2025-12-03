@@ -99,3 +99,11 @@ class PassDownloadView(APIView):
         response = HttpResponse(pkpass, content_type="application/vnd.apple.pkpass")
         response["Content-Disposition"] = f'attachment; filename="{serial_number}.pkpass"'
         return response
+
+
+class PassKitLogView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        return Response(status=status.HTTP_204_NO_CONTENT)

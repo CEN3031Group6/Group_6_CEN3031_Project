@@ -38,6 +38,7 @@ type ApiStation = {
   id: string
   name: string
   api_token: string
+  public_slug: string
   prepared_loyalty_card: string | null
   prepared_at?: string | null
   created_at?: string | null
@@ -48,6 +49,7 @@ type DeviceStationSelection = {
   id: string
   name: string
   token: string
+  slug?: string
 }
 
 export default function StationsPage() {
@@ -91,7 +93,7 @@ export default function StationsPage() {
         throw new Error("Unable to load stations.")
       }
       const payload = await response.json()
-      const results: ApiStation[] = Array.isArray(payload) ? payload : payload.results ?? []
+      const results = (Array.isArray(payload) ? payload : payload.results ?? []) as ApiStation[]
       setStations(results)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reach the backend.")
@@ -201,6 +203,7 @@ export default function StationsPage() {
       id: station.id,
       name: station.name,
       token: station.api_token,
+      slug: station.public_slug,
     }
     setActiveStation(selection)
     window.localStorage.setItem("loyaltypass.activeStation", JSON.stringify(selection))

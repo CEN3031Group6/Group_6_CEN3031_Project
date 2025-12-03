@@ -4,6 +4,7 @@ from .passkit_views import (
     DeviceRegistrationListView,
     DeviceRegistrationView,
     PassDownloadView,
+    PassKitLogView,
 )
 
 urlpatterns = [
@@ -21,5 +22,10 @@ urlpatterns = [
         "v1/passes/<str:pass_type_identifier>/<uuid:serial_number>",
         PassDownloadView.as_view(),
         name="passkit-pass-download",
+    ),
+    path(
+        "v1/log",
+        PassKitLogView.as_view(),
+        name="passkit-log",
     ),
 ]
